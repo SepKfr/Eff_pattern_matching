@@ -1,4 +1,4 @@
-from models.context_aware_attn import Attn
+from models.eff_acat import Attn
 from torch.optim import Adam
 import torch.nn as nn
 import numpy as np
@@ -55,51 +55,42 @@ config_file = dict()
 def train(args, model, train_en, train_de, train_y,
           test_en, test_de, test_y, epoch, e
           , val_loss, val_inner_loss, optimizer,
-          config, config_num, best_config, criterion, path):
+          config, best_config, criterion, path):
 
+    model.train()
+    total_loss = 0
     stop = False
-    try:
-        total_loss = 0
 
-        for batch_id in range(train_en.shape[0]):
-            output = model(train_en[batch_id], train_de[batch_id])
-            loss = criterion(output, train_y[batch_id])
-            total_loss += loss.item()
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step_and_update_lr()
+    for batch_id in range(train_en.shape[0]):
+        output = model(train_en[batch_id], train_de[batch_id])
+        loss = criterion(output, train_y[batch_id])
+        total_loss += loss.item()
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step_and_update_lr()
 
-        print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
+    print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
-        model.eval()
-        test_loss = 0
-        for j in range(test_en.shape[0]):
-            outputs = model(test_en[j], test_de[j])
-            loss = criterion(test_y[j], outputs)
-            test_loss += loss.item()
+    model.eval()
+    test_loss = 0
+    for j in range(test_en.shape[0]):
+        outputs = model(test_en[j], test_de[j])
+        loss = criterion(test_y[j], outputs)
+        test_loss += loss.item()
 
-        if test_loss < val_inner_loss:
-            val_inner_loss = test_loss
-            if val_inner_loss < val_loss:
-                val_loss = val_inner_loss
-                best_config = config
-                torch.save({'model_state_dict': model.state_dict()}, os.path.join(path, "{}_{}".format(args.name, args.seed)))
+    if test_loss < val_inner_loss:
+        val_inner_loss = test_loss
+        if val_inner_loss < val_loss:
+            val_loss = val_inner_loss
+            best_config = config
+            torch.save({'model_state_dict': model.state_dict()}, os.path.join(path, "{}_{}".format(args.name, args.seed)))
 
-            e = epoch
+        e = epoch
 
         if epoch - e > 10:
             stop = True
 
         print("Average loss: {:.4f}".format(test_loss))
-
-    except KeyboardInterrupt:
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'config_num': config_num,
-            'best_config': best_config
-        }, os.path.join(path, "{}_continue".format(args.name)))
-        sys.exit(0)
 
     return best_config, val_loss, val_inner_loss, stop, e
 
@@ -111,7 +102,7 @@ def create_config(hyper_parameters):
 
 def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatter, path, device):
 
-    stack_size, n_heads, d_model, kernel = config
+    stack_size, n_heads, d_model = config
     d_k = int(d_model / n_heads)
     mae = nn.L1Loss()
 
@@ -129,7 +120,7 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
                  d_k=d_k, d_v=d_k, n_heads=n_heads,
                  n_layers=stack_size, src_pad_index=0,
                  tgt_pad_index=0, device=device,
-                 attn_type=args.attn_type, seed=args.seed, kernel=kernel).to(device)
+                 attn_type=args.attn_type, seed=args.seed, dr=0).to(device)
 
     checkpoint = torch.load(os.path.join(path, "{}_{}".format(args.name, args.seed)))
     model.load_state_dict(checkpoint["model_state_dict"])
@@ -165,8 +156,8 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='basic_attn')
-    parser.add_argument("--name", type=str, default='basic_attn')
+    parser.add_argument("--attn_type", type=str, default='ACAT')
+    parser.add_argument("--name", type=str, default='ACAT')
     parser.add_argument("--exp_name", type=str, default='electricity')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
@@ -225,14 +216,9 @@ def main():
     if args.attn_type == "basic_attn":
         model_params['stack_size'] = [1, 3]
 
-    if args.attn_type == "conv_attn":
-        kernels = [1, 3, 6, 9]
-    else:
-        kernels = [1]
-    hyper_param = list([model_params['stack_size'],
+    hyper_param = list([[model_params['stack_size']],
                         [model_params['num_heads']],
-                        model_params['hidden_layer_size'],
-                        kernels])
+                        model_params['hidden_layer_size']])
     configs = create_config(hyper_param)
     print('number of config: {}'.format(len(configs)))
 
@@ -254,7 +240,7 @@ def main():
     for i, conf in enumerate(configs, config_num):
         print('config {}: {}'.format(i+1, conf))
 
-        stack_size, n_heads, d_model, kernel = conf
+        stack_size, n_heads, d_model = conf
         d_k = int(d_model / n_heads)
 
         model = Attn(src_input_size=train_en_p.shape[3],
@@ -264,7 +250,7 @@ def main():
                      d_k=d_k, d_v=d_k, n_heads=n_heads,
                      n_layers=stack_size, src_pad_index=0,
                      tgt_pad_index=0, device=device,
-                     attn_type=args.attn_type, seed=args.seed, kernel=kernel)
+                     attn_type=args.attn_type, seed=args.seed, dr=0)
         model.to(device)
 
         optim = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 4000)
@@ -276,12 +262,11 @@ def main():
 
         for epoch in range(epoch_start, params['num_epochs'], 1):
 
-            model.train()
             best_config, val_loss, val_inner_loss, stop, e = \
                 train(args, model, train_en_p.to(device), train_de_p.to(device),
                       train_y_p.to(device), valid_en_p.to(device), valid_de_p.to(device),
                       valid_y_p.to(device), epoch, e, val_loss, val_inner_loss,
-                      optim, conf, i, best_config, criterion, path)
+                      optim, conf, best_config, criterion, path)
 
             if stop:
                 break
