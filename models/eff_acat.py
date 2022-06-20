@@ -292,43 +292,46 @@ class ACAT(nn.Module):
     def __init__(self, d_k, device, h):
 
         super(ACAT, self).__init__()
+
         self.device = device
         self.d_k = d_k
+        self.filter_length = [1, 3, 6, 9]
+        self.conv_list_q = nn.ModuleList(
+            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
+                       kernel_size=f,
+                       padding=int(f / 2),
+                       bias=False) for f in self.filter_length]).to(device)
+        self.conv_list_k = nn.ModuleList(
+            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
+                       kernel_size=f,
+                       padding=int(f / 2),
+                       bias=False) for f in self.filter_length]).to(device)
+        self.norm = nn.BatchNorm1d(h * d_k).to(device)
+        self.activation = nn.ELU().to(device)
+        self.w_f_q = nn.Parameter(torch.randn(h*d_k, h*d_k, len(self.filter_length), device=self.device, requires_grad=True))
+        self.w_f_k = nn.Parameter(
+            torch.randn(h * d_k, h * d_k, len(self.filter_length), device=self.device, requires_grad=True))
 
-        self.filter_length = [1, 3, 6, 9, 12]
-        self.conv_q = nn.Parameter(torch.randn(d_k*h, d_k*h, max(self.filter_length), requires_grad=True, device=device))
-        self.conv_k = nn.Parameter(torch.randn(d_k*h, d_k*h, max(self.filter_length), requires_grad=True, device=device))
-
-        self.w = nn.Parameter(torch.randn(len(self.filter_length), requires_grad=True, device=device))
-
-    def get_conv(self, signal, shape, tnsr):
-
-        b, h, l, d_k = shape
-
-        f = max(self.filter_length)
-        seq = F.pad(signal, (int(f / 2), int(f / 2))).unfold(-1, f, 1)[:, :, :l, :]
-        f_s = torch.FloatTensor(self.filter_length).to(self.device)
-        w_f = torch.einsum('f, f -> f', f_s, self.w)
-        ind = torch.max(w_f, dim=0)[1]
-
-        mask = torch.zeros_like(seq, device=self.device)
-        mask[:, :, :, :self.filter_length[ind]] = torch.ones(b, h*d_k, l, self.filter_length[ind], device=self.device)
-        seq = torch.einsum('bdlm, bdlm -> bdlm', seq, mask)
-
-        if tnsr == "query":
-            signal_f = torch.einsum('bdlf, dof-> blo', seq, self.conv_q).reshape(b, h, l, d_k)
-        else:
-            signal_f = torch.einsum('bdlf, dof-> blo', seq, self.conv_k).reshape(b, h, l, d_k)
-        return signal_f
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
 
     def forward(self, Q, K, V, attn_mask):
 
         b, h, l, d_k = Q.shape
-        l_k = K.shape[-2]
-        l_k_log = int(math.log2(l_k))
+        l_k = K.shape[2]
 
-        Q = self.get_conv(Q.reshape(b, h*d_k, -1), Q.shape, "query") + Q
-        K = self.get_conv(K.reshape(b, h*d_k, -1), K.shape, "key") + K
+        Q_l = [self.activation(self.norm(self.conv_list_q[i](Q.reshape(b, h * d_k, l))))[:, :, :l]
+               for i in range(len(self.filter_length))]
+        K_l = [self.activation(self.norm(self.conv_list_k[i](K.reshape(b, h * d_k, l_k))))[:, :, :l_k]
+               for i in range(len(self.filter_length))]
+        Q_p = torch.cat(Q_l, dim=0).reshape(b, h*d_k, l, -1)
+        K_p = torch.cat(K_l, dim=0).reshape(b, h*d_k, l_k, -1)
+
+        Q = torch.max(torch.einsum('bdlf, dof-> bolf', Q_p, self.w_f_q), dim=-1)[0]
+        K = torch.max(torch.einsum('bdlf, dof-> bolf', K_p, self.w_f_k), dim=-1)[0]
+        Q = Q.reshape(b, h, l, -1)
+        K = K.reshape(b, h, l_k, -1)
 
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
@@ -339,9 +342,7 @@ class ACAT(nn.Module):
             scores.masked_fill_(attn_mask, -1e9)
 
         attn = torch.softmax(scores, -1)
-
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
-
         return context, attn
 
 
