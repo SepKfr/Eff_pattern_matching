@@ -222,8 +222,6 @@ def main():
         os.makedirs(path)
 
     criterion = nn.MSELoss()
-    if args.attn_type == "basic_attn":
-        model_params['stack_size'] = [1, 3]
 
     if args.attn_type == "conv_attn":
         kernels = [1, 3, 6, 9]
@@ -285,6 +283,7 @@ def main():
 
             if stop:
                 break
+        del model
 
         print("best config so far: {}".format(best_config))
 
