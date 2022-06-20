@@ -256,7 +256,7 @@ class ACAT(nn.Module):
         self.device = device
         self.d_k = d_k
 
-        self.filter_length = [2, 4]
+        self.filter_length = [1, 3, 6, 9, 12]
         self.conv_q = nn.Parameter(torch.randn(d_k*h, d_k*h, max(self.filter_length), requires_grad=True, device=device))
         self.conv_k = nn.Parameter(torch.randn(d_k*h, d_k*h, max(self.filter_length), requires_grad=True, device=device))
 
@@ -271,6 +271,7 @@ class ACAT(nn.Module):
         f_s = torch.FloatTensor(self.filter_length).to(self.device)
         w_f = torch.einsum('f, f -> f', f_s, self.w)
         ind = torch.max(w_f, dim=0)[1]
+
         mask = torch.zeros_like(seq, device=self.device)
         mask[:, :, :, :self.filter_length[ind]] = torch.ones(b, h*d_k, l, self.filter_length[ind], device=self.device)
         seq = torch.einsum('bdlm, bdlm -> bdlm', seq, mask)
@@ -284,12 +285,21 @@ class ACAT(nn.Module):
     def forward(self, Q, K, V, attn_mask):
 
         b, h, l, d_k = Q.shape
+        l_k = K.shape[-2]
+        l_k_log = int(math.log2(l_k))
 
         Q = self.get_conv(Q.reshape(b, h*d_k, -1), Q.shape, "query") + Q
         K = self.get_conv(K.reshape(b, h*d_k, -1), K.shape, "key") + K
-        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
+        inds = [0 if i == -1 else l_k - 2 ** (l_k_log - i) for i in range(-1, l_k_log)]
+        inds.append(l_k-1)
+
+        K_red = K[:, :, inds, :]
+        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K_red) / np.sqrt(self.d_k)
         attn = torch.softmax(scores, -1)
-        context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
+
+        attn_f = torch.zeros(b, h, l, l_k, device=self.device)
+        attn_f[:, :, :, inds] = attn
+        context = torch.einsum('bhqk,bhkd->bhqd', attn_f, V)
 
         return context, attn
 

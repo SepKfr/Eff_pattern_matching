@@ -172,7 +172,7 @@ class TrafficFormatter(GenericDataFormatter):
             'hidden_layer_size': [16, 32, 64],
             'minibatch_size': [256],
             'num_heads': 8,
-            'stack_size': 1,
+            'stack_size': [1],
             'context_lengths': [1, 3, 6, 9]
         }
 

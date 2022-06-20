@@ -216,7 +216,7 @@ def main():
     if args.attn_type == "basic_attn":
         model_params['stack_size'] = [1, 3]
 
-    hyper_param = list([[model_params['stack_size']],
+    hyper_param = list([model_params['stack_size'],
                         [model_params['num_heads']],
                         model_params['hidden_layer_size']])
     configs = create_config(hyper_param)
@@ -272,6 +272,7 @@ def main():
                 break
 
         print("best config so far: {}".format(best_config))
+        del model
 
     test_loss, mae_loss = evaluate(best_config, args, test_en_p.to(device),
                                    test_de_p.to(device), test_y_p.to(device),
