@@ -121,7 +121,7 @@ class WatershedFormatter(DataFormatter):
         """Returns default optimised model parameters."""
 
         model_params = {
-            'hidden_layer_size': [16, 32, 64],
+            'hidden_layer_size': [16, 32],
             'minibatch_size': [256],
             'num_heads': 8,
             'stack_size': [1],
