@@ -78,6 +78,8 @@ def train(args, model, train_en, train_de, train_y,
         loss = criterion(test_y[j], outputs)
         test_loss += loss.item()
 
+    print("Average loss: {:.4f}".format(test_loss))
+
     if test_loss < val_inner_loss:
         val_inner_loss = test_loss
         if val_inner_loss < val_loss:
@@ -89,8 +91,6 @@ def train(args, model, train_en, train_de, train_y,
 
         if epoch - e > 10:
             stop = True
-
-        print("Average loss: {:.4f}".format(test_loss))
 
     return best_config, val_loss, val_inner_loss, stop, e
 
