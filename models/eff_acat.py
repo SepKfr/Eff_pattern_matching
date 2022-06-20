@@ -242,6 +242,12 @@ class BasicAttn(nn.Module):
     def forward(self, Q, K, V, attn_mask):
 
         scores = torch.einsum('bhqd, bhkd -> bhqk', Q, K) / np.sqrt(self.d_k)
+
+        if attn_mask is not None:
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
+
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
 
@@ -295,6 +301,13 @@ class ACAT(nn.Module):
 
         K_red = K[:, :, inds, :]
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K_red) / np.sqrt(self.d_k)
+
+        if attn_mask is not None:
+            attn_mask = attn_mask[:, :, :, inds]
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
+
         attn = torch.softmax(scores, -1)
 
         attn_f = torch.zeros(b, h, l, l_k, device=self.device)
