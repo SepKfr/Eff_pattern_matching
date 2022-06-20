@@ -289,7 +289,7 @@ class BasicAttn(nn.Module):
 
 class ACAT(nn.Module):
 
-    def __init__(self, d_k, device, h, l, l_k):
+    def __init__(self, d_k, device, h):
 
         super(ACAT, self).__init__()
 
