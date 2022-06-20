@@ -311,10 +311,6 @@ class ACAT(nn.Module):
         self.w_q = nn.Parameter(torch.randn(len(self.filter_length), d_k*h, device=self.device))
         self.w_k = nn.Parameter(torch.randn(len(self.filter_length), d_k*h, device=self.device))
 
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
-
     def forward(self, Q, K, V, attn_mask):
 
         b, h, l, d_k = Q.shape
