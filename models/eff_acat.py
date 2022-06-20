@@ -1,5 +1,4 @@
 import math
-
 import torch
 import torch.nn as nn
 import numpy as np
@@ -330,23 +329,18 @@ class ACAT(nn.Module):
 
         Q = self.get_conv(Q.reshape(b, h*d_k, -1), Q.shape, "query") + Q
         K = self.get_conv(K.reshape(b, h*d_k, -1), K.shape, "key") + K
-        inds = [0 if i == -1 else l_k - 2 ** (l_k_log - i) for i in range(-1, l_k_log)]
-        inds.append(l_k-1)
 
-        K_red = K[:, :, inds, :]
-        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K_red) / np.sqrt(self.d_k)
+        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
         if attn_mask is not None:
-            attn_mask = attn_mask[:, :, :, inds]
+
             attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
             attn_mask = attn_mask.to(self.device)
             scores.masked_fill_(attn_mask, -1e9)
 
         attn = torch.softmax(scores, -1)
 
-        attn_f = torch.zeros(b, h, l, l_k, device=self.device)
-        attn_f[:, :, :, inds] = attn
-        context = torch.einsum('bhqk,bhkd->bhqd', attn_f, V)
+        context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
 
         return context, attn
 
