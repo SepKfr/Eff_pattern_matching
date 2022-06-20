@@ -278,7 +278,7 @@ def main():
                                    test_de_p.to(device), test_y_p.to(device),
                                    test_id_p, criterion, formatter, path, device)
 
-    stack_size, heads, d_model, kernel = best_config
+    stack_size, heads, d_model = best_config
     print("best_config: {}".format(best_config))
 
     erros[args.name] = list()
