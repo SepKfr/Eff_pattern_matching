@@ -308,7 +308,6 @@ class ACAT(nn.Module):
                        bias=False) for f in self.filter_length]).to(device)
         self.norm = nn.BatchNorm1d(h * d_k).to(device)
         self.activation = nn.ELU().to(device)
-        self.max_pooling = nn.MaxPool1d(kernel_size=len(self.filter_length))
         self.w_q = nn.Parameter(torch.randn(len(self.filter_length), d_k*h, device=self.device))
         self.w_k = nn.Parameter(torch.randn(len(self.filter_length), d_k*h, device=self.device))
 
@@ -328,8 +327,8 @@ class ACAT(nn.Module):
         Q_p = torch.cat(Q_l, dim=0).reshape(b, h*d_k, l, -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, h*d_k, l_k, -1)
 
-        Q = torch.einsum('bdlf, fd-> bdl', Q_p, self.w_q).reshape(b, h, l, -1)
-        K = torch.einsum('bdlf, fd-> bdl', K_p, self.w_k).reshape(b, h, l_k, -1)
+        Q = self.activation(torch.einsum('bdlf, fd-> bdl', Q_p, self.w_q).reshape(b, h, l, -1))
+        K = self.activation(torch.einsum('bdlf, fd-> bdl', K_p, self.w_k).reshape(b, h, l_k, -1))
 
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
