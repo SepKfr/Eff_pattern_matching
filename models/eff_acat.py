@@ -309,9 +309,10 @@ class ACAT(nn.Module):
                        padding=int(f / 2),
                        bias=False) for f in self.filter_length]).to(device)
         self.norm = nn.BatchNorm1d(h * d_k).to(device)
-        self.activation = nn.ELU().to(device)
-        self.w_q = nn.Linear(h * d_k, h * d_k, device=self.device)
-        self.w_k = nn.Linear(h * d_k, h * d_k, device=self.device)
+        self.activation = nn.ELU()
+        self.relu = nn.ReLU()
+        self.w_q = nn.Parameter(torch.randn(len(self.filter_length), d_k * h, device=self.device))
+        self.w_k = nn.Parameter(torch.randn(len(self.filter_length), d_k * h, device=self.device))
 
     def forward(self, Q, K, V, attn_mask):
 
@@ -328,9 +329,8 @@ class ACAT(nn.Module):
         log_l_k = int(math.log2(l_k))
         inds = [0 if i == -1 else l_k - 2**(log_l_k - i) for i in range(-1, log_l_k)]
         inds.append(l_k - 1)
-
-        Q = self.activation(torch.max(self.w_q(Q_p), dim=-2)[0]).reshape(b, h, l, -1)
-        K = self.activation(torch.max(self.w_k(K_p), dim=-2)[0]).reshape(b, h, l_k, -1)
+        Q = self.relu(torch.mean(torch.einsum('blfd, fd -> blfd', Q_p, self.w_q), dim=-2)).reshape(b, h, l, -1) + Q
+        K = self.relu(torch.mean(torch.einsum('blfd, fd -> blfd', K_p, self.w_k), dim=-2)).reshape(b, h, l_k, -1) + K
         K_red = K[:, :, inds, :]
 
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K_red) / np.sqrt(self.d_k)
