@@ -289,68 +289,73 @@ class BasicAttn(nn.Module):
 
 class ACAT(nn.Module):
 
-    def __init__(self, d_k, device, h, l_k):
+    def __init__(self, d_k, device, h, l_k, cross_attn=False):
 
         super(ACAT, self).__init__()
 
         self.device = device
         self.d_k = d_k
-        log_l_k_half = int(math.log(l_k))
-        interval = 2 if int(log_l_k_half / 3) < 3 else int(log_l_k_half / 3)
-        self.filter_length = [2 ** (log_l_k_half - i) for i in range(0, log_l_k_half, interval)]
-        self.conv_list_q = nn.ModuleList(
-            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
-                       kernel_size=f,
-                       padding=int(f / 2),
-                       bias=False) for f in self.filter_length]).to(device)
-        self.conv_list_k = nn.ModuleList(
-            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
-                       kernel_size=f,
-                       padding=int(f / 2),
-                       bias=False) for f in self.filter_length]).to(device)
-        self.norm = nn.BatchNorm1d(h * d_k).to(device)
-        self.activation = nn.ELU()
-        self.relu = nn.ReLU()
-        self.w_q = nn.Parameter(torch.randn(len(self.filter_length), d_k * h, device=self.device))
-        self.w_k = nn.Parameter(torch.randn(len(self.filter_length), d_k * h, device=self.device))
+        self.cross_attn = cross_attn
+        if not cross_attn:
+            log_l_k_half = int(math.log(l_k))
+            interval = 2 if int(log_l_k_half / 3) < 3 else int(log_l_k_half / 3)
+            self.filter_length = [2 ** (log_l_k_half - i) for i in range(0, log_l_k_half, interval)]
+            self.conv_list_q = nn.ModuleList(
+                [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
+                           kernel_size=f,
+                           padding=int(f / 2),
+                           bias=False) for f in self.filter_length]).to(device)
+            self.conv_list_k = nn.ModuleList(
+                [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
+                           kernel_size=f,
+                           padding=int(f / 2),
+                           bias=False) for f in self.filter_length]).to(device)
+            self.norm = nn.BatchNorm1d(h * d_k).to(device)
+            self.activation = nn.ELU()
+            self.relu = nn.ReLU()
+            self.w_q = nn.Parameter(torch.randn(len(self.filter_length), d_k * h, device=self.device))
+            self.w_k = nn.Parameter(torch.randn(len(self.filter_length), d_k * h, device=self.device))
 
     def forward(self, Q, K, V, attn_mask):
 
-        b, h, l, d_k = Q.shape
-        l_k = K.shape[2]
+        if self.cross_attn:
+            context, attn = BasicAttn(self.d_k, self.device)(Q, K, V, attn_mask)
+        else:
+            b, h, l, d_k = Q.shape
+            l_k = K.shape[2]
 
-        Q_l = [self.activation(self.norm(self.conv_list_q[i](Q.reshape(b, h * d_k, l))))[:, :, :l]
-               for i in range(len(self.filter_length))]
-        K_l = [self.activation(self.norm(self.conv_list_k[i](K.reshape(b, h * d_k, l_k))))[:, :, :l_k]
-               for i in range(len(self.filter_length))]
-        Q_p = torch.cat(Q_l, dim=0).reshape(b, l, -1, h*d_k)
-        K_p = torch.cat(K_l, dim=0).reshape(b, l_k, -1, h*d_k)
+            Q_l = [self.activation(self.norm(self.conv_list_q[i](Q.reshape(b, h * d_k, l))))[:, :, :l]
+                   for i in range(len(self.filter_length))]
+            K_l = [self.activation(self.norm(self.conv_list_k[i](K.reshape(b, h * d_k, l_k))))[:, :, :l_k]
+                   for i in range(len(self.filter_length))]
+            Q_p = torch.cat(Q_l, dim=0).reshape(b, l, -1, h*d_k)
+            K_p = torch.cat(K_l, dim=0).reshape(b, l_k, -1, h*d_k)
 
-        log_l_k = int(math.log2(l_k))
-        inds = [0 if i == -1 else l_k - 2**(log_l_k - i) for i in range(-1, log_l_k)]
-        inds.append(l_k - 1)
-        Q = self.relu(torch.mean(torch.einsum('blfd, fd -> blfd', Q_p, self.w_q), dim=-2)).reshape(b, h, l, -1) + Q
-        K = self.relu(torch.mean(torch.einsum('blfd, fd -> blfd', K_p, self.w_k), dim=-2)).reshape(b, h, l_k, -1) + K
-        K_red = K[:, :, inds, :]
+            log_l_k = int(math.log2(l_k))
+            inds = [0 if i == -1 else l_k - 2**(log_l_k - i) for i in range(-1, log_l_k)]
+            inds.append(l_k - 1)
+            Q = self.relu(torch.mean(torch.einsum('blfd, fd -> blfd', Q_p, self.w_q), dim=-2)).reshape(b, h, l, -1) + Q
+            K = self.relu(torch.mean(torch.einsum('blfd, fd -> blfd', K_p, self.w_k), dim=-2)).reshape(b, h, l_k, -1) + K
+            K_red = K[:, :, inds, :]
 
-        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K_red) / np.sqrt(self.d_k)
+            scores = torch.einsum('bhqd,bhkd->bhqk', Q, K_red) / np.sqrt(self.d_k)
 
-        if attn_mask is not None:
-            attn_mask = attn_mask[:, :, :, inds]
-            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
-            attn_mask = attn_mask.to(self.device)
-            scores.masked_fill_(attn_mask, -1e9)
+            if attn_mask is not None:
+                attn_mask = attn_mask[:, :, :, inds]
+                attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+                attn_mask = attn_mask.to(self.device)
+                scores.masked_fill_(attn_mask, -1e9)
 
-        scores_f = torch.zeros(b, h, l, l_k, device=self.device)
-        scores_f[:, :, :, inds] = scores
-        attn = torch.softmax(scores_f, -1)
-        context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
+            scores_f = torch.zeros(b, h, l, l_k, device=self.device)
+            scores_f[:, :, :, inds] = scores
+            attn = torch.softmax(scores_f, -1)
+            context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
 
 
 class MultiHeadAttention(nn.Module):
 
-    def __init__(self, d_model, d_k, d_v, n_heads, device, attn_type, kernel):
+    def __init__(self, d_model, d_k, d_v, n_heads, device, attn_type, kernel, cross_attn=False):
 
         super(MultiHeadAttention, self).__init__()
 
@@ -360,6 +365,7 @@ class MultiHeadAttention(nn.Module):
         self.fc = nn.Linear(n_heads * d_v, d_model, bias=False)
 
         self.device = device
+        self.cross_attn = cross_attn
 
         self.d_model = d_model
         self.d_k = d_k
@@ -378,7 +384,8 @@ class MultiHeadAttention(nn.Module):
         if attn_mask is not None:
             attn_mask = attn_mask.unsqueeze(1).repeat(1, self.n_heads, 1, 1)
         if self.attn_type == "ACAT":
-            context, attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
+            context, attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2],
+                                 cross_attn=self.cross_attn)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "basic_attn":
             context, attn = BasicAttn(d_k=self.d_k, device=self.device)(
@@ -483,7 +490,7 @@ class DecoderLayer(nn.Module):
         self.dec_enc_attn = MultiHeadAttention(
             d_model=d_model, d_k=d_k,
             d_v=d_v, n_heads=n_heads, device=device,
-            attn_type=attn_type, kernel=kernel)
+            attn_type=attn_type, kernel=kernel, cross_attn=True)
         self.pos_ffn = PoswiseFeedForwardNet(
             d_model=d_model, d_ff=d_ff)
         self.layer_norm = nn.LayerNorm(d_model, elementwise_affine=False)
