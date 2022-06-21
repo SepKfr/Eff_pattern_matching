@@ -165,8 +165,8 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='ACAT')
-    parser.add_argument("--name", type=str, default='ACAT')
+    parser.add_argument("--attn_type", type=str, default='auto')
+    parser.add_argument("--name", type=str, default='auto')
     parser.add_argument("--exp_name", type=str, default='electricity')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
@@ -280,10 +280,9 @@ def main():
                       valid_y_p.to(device), epoch, e, val_loss, val_inner_loss,
                       optim, conf, i, best_config, criterion, path)
 
-            print("val loss: {:.4f}".format(val_inner_loss))
-
             if stop:
                 break
+        print("val loss: {:.4f}".format(val_inner_loss))
         del model
 
         print("best config so far: {}".format(best_config))
