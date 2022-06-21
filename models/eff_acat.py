@@ -312,7 +312,6 @@ class ACAT(nn.Module):
         self.activation = nn.ELU().to(device)
         self.w_q = nn.Linear(h * d_k, h * d_k, device=self.device)
         self.w_k = nn.Linear(h * d_k, h * d_k, device=self.device)
-        self.dropout = nn.Dropout(0.1)
 
     def forward(self, Q, K, V, attn_mask):
 
@@ -346,7 +345,6 @@ class ACAT(nn.Module):
         scores_f[:, :, :, inds] = scores
         attn = torch.softmax(scores_f, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
-        context = self.dropout(context)
         return context, attn
 
 
