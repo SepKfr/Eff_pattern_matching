@@ -1,8 +1,8 @@
-import math
 import torch
 import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
+import math
 import random
 
 
@@ -143,10 +143,8 @@ class AutoCorrelation(nn.Module):
         else:
             V = self.time_delay_agg_inference(values.permute(0, 2, 3, 1).contiguous(), corr).permute(0, 3, 1, 2)
 
-        if self.output_attention:
-            return (V.contiguous(), corr.permute(0, 3, 1, 2))
-        else:
-            return (V.contiguous(), None)
+        return (V.contiguous(), corr.permute(0, 3, 1, 2))
+
 
 
 class ProbAttention(nn.Module):
@@ -422,9 +420,11 @@ class EncoderLayer(nn.Module):
         out, attn = self.enc_self_attn(
             Q=enc_inputs, K=enc_inputs,
             V=enc_inputs, attn_mask=enc_self_attn_mask)
+
         out = self.layer_norm(out + enc_inputs)
         out_2 = self.pos_ffn(out)
         out_2 = self.layer_norm(out_2 + out)
+
         return out_2, attn
 
 
@@ -462,8 +462,8 @@ class Encoder(nn.Module):
             enc_outputs, enc_self_attn = layer(enc_outputs, enc_self_attn_mask)
             enc_self_attns.append(enc_self_attn)
 
-        '''enc_self_attns = torch.stack(enc_self_attns)
-        enc_self_attns = enc_self_attns.permute([1, 0, 2, 3, 4])'''
+        enc_self_attns = torch.stack(enc_self_attns)
+        enc_self_attns = enc_self_attns.permute([1, 0, 2, 3, 4])
         return enc_outputs, enc_self_attns
 
 
@@ -535,11 +535,11 @@ class Decoder(nn.Module):
             )
             dec_self_attns.append(dec_self_attn)
             dec_enc_attns.append(dec_enc_attn)
-        '''dec_self_attns = torch.stack(dec_self_attns)
+        dec_self_attns = torch.stack(dec_self_attns)
         dec_enc_attns = torch.stack(dec_enc_attns)
 
         dec_self_attns = dec_self_attns.permute([1, 0, 2, 3, 4])
-        dec_enc_attns = dec_enc_attns.permute([1, 0, 2, 3, 4])'''
+        dec_enc_attns = dec_enc_attns.permute([1, 0, 2, 3, 4])
 
         return dec_outputs, dec_self_attns, dec_enc_attns
 
@@ -580,3 +580,5 @@ class Attn(nn.Module):
         dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
         dec_logits = self.projection(dec_outputs)
         return dec_logits
+
+
