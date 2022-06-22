@@ -266,7 +266,7 @@ def main():
                      seed=args.seed, kernel=kernel)
         model.to(device)
 
-        optim = Adam(model.parameters())
+        optim = Adam(model.parameters(), lr=1e-4)
 
         epoch_start = 0
 
