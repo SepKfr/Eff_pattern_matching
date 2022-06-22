@@ -330,10 +330,10 @@ class ACAT(nn.Module):
         inds = [0 if i == -1 else l_k - 2**(log_l_k - i) for i in range(-1, log_l_k)]
         inds.append(l_k - 1)
         Q = self.relu(torch.mean(torch.einsum('blfd, fd -> blfd', Q_p, self.w_q), dim=-2)).reshape(b, h, l, -1) + Q
-        K = self.relu(torch.mean(torch.einsum('blfd, fd -> blfd', K_p, self.w_k), dim=-2)).reshape(b, h, l_k, -1) + K
-        K_red = K[:, :, inds, :]
-
-        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K_red) / np.sqrt(self.d_k)
+        K_red = K_p[:, inds, :, :]
+        K = self.relu(torch.mean(torch.einsum('blfd, fd -> blfd', K_red, self.w_k), dim=-2))\
+                .reshape(b, h, len(inds), -1) + K[:, :, inds, :]
+        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
         if attn_mask is not None:
             attn_mask = attn_mask[:, :, :, inds]
