@@ -67,7 +67,7 @@ def train(args, model, train_en, train_de, train_y,
             total_loss += loss.item()
             optimizer.zero_grad()
             loss.backward()
-            optimizer.step_and_update_lr()
+            optimizer.step()
 
         print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
@@ -130,7 +130,8 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
                  n_layers=stack_size, src_pad_index=0,
                  tgt_pad_index=0, device=device,
                  attn_type=args.attn_type,
-                 seed=args.seed).to(device)
+                 seed=args.seed,
+                 kernel=kernel).to(device)
 
     checkpoint = torch.load(os.path.join(path, "{}_{}".format(args.name, args.seed)))
     model.load_state_dict(checkpoint["model_state_dict"])
@@ -166,8 +167,8 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='ACAT')
-    parser.add_argument("--name", type=str, default='ACAT')
+    parser.add_argument("--attn_type", type=str, default='auto')
+    parser.add_argument("--name", type=str, default='auto')
     parser.add_argument("--exp_name", type=str, default='electricity')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
@@ -264,10 +265,10 @@ def main():
                      n_layers=stack_size, src_pad_index=0,
                      tgt_pad_index=0, device=device,
                      attn_type=args.attn_type,
-                     seed=args.seed)
+                     seed=args.seed, kernel=kernel)
         model.to(device)
 
-        optim = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 1000)
+        optim = Adam(model.parameters(), lr=1e-4)
 
         epoch_start = 0
 
