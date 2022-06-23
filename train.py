@@ -67,7 +67,7 @@ def train(args, model, train_en, train_de, train_y,
             total_loss += loss.item()
             optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
+            optimizer.step_and_update_lr()
 
         print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
@@ -167,8 +167,8 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='auto')
-    parser.add_argument("--name", type=str, default='auto')
+    parser.add_argument("--attn_type", type=str, default='ACAT')
+    parser.add_argument("--name", type=str, default='ACAT')
     parser.add_argument("--exp_name", type=str, default='electricity')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
@@ -268,7 +268,7 @@ def main():
                      seed=args.seed, kernel=kernel)
         model.to(device)
 
-        optim = Adam(model.parameters(), lr=1e-4)
+        optim = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 4000)
 
         epoch_start = 0
 
