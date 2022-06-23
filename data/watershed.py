@@ -109,7 +109,7 @@ class WatershedFormatter(DataFormatter):
 
         fixed_params = {
             'total_time_steps': 9 * 24,
-            'num_encoder_steps': 7 * 24,
+            'num_encoder_steps': 10 * 24,
             'num_epochs': 50,
             'early_stopping_patience': 5,
             'multiprocessing_workers': 5
