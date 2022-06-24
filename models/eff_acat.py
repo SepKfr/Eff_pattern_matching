@@ -296,19 +296,19 @@ class ACAT(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        interval = 2 if int(self.log_l_k / 5) < 2 else math.ceil(self.log_l_k / 5)
-        self.filter_length = [int((2 ** (self.log_l_k - i))) for i in range(0, self.log_l_k, interval)]
-        self.filter_length = self.filter_length[1:] if len(self.filter_length) > 2 else self.filter_length
+        self.filter_length = [3, 9, 15]
+        self.out_chanel = int(d_k * h / 4)
         self.conv_list_q = nn.ModuleList(
             [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
                        kernel_size=f,
                        padding=int(f / 2),
                        bias=False) for f in self.filter_length]).to(device)
         self.conv_list_k = nn.ModuleList(
-            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
+            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k*h,
                        kernel_size=f,
                        padding=int(f / 2),
                        bias=False) for f in self.filter_length]).to(device)
+
         self.norm = nn.BatchNorm1d(h * d_k).to(device)
         self.activation = nn.ELU()
         self.relu = nn.ReLU()
@@ -322,11 +322,11 @@ class ACAT(nn.Module):
                for i in range(len(self.filter_length))]
         K_l = [self.activation(self.norm(self.conv_list_k[i](K.reshape(b, h * d_k, l_k))))[:, :, :l_k]
                for i in range(len(self.filter_length))]
-        Q_p = torch.cat(Q_l, dim=0).reshape(b, l, -1, h*d_k)
-        K_p = torch.cat(K_l, dim=0).reshape(b, l_k, -1, h*d_k)
+        Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l*len(self.filter_length), d_k)
+        K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k*len(self.filter_length), d_k)
+        Q = Q_p[:, :, 0::3, :] + Q
+        K = K_p[:, :, 0::3, :] + K
 
-        Q = self.relu(torch.mean(Q_p, dim=-2)).reshape(b, h, l, -1) + Q
-        K = self.relu(torch.mean(K_p, dim=-2)).reshape(b, h, -1, d_k) + K
         K, index = torch.topk(K, self.log_l_k, dim=-2)
         index = index[:, :, :, 0]
         index = index.unsqueeze(-2).repeat(1, 1, l, 1)
