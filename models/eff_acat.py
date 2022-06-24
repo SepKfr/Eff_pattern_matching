@@ -295,9 +295,10 @@ class ACAT(nn.Module):
 
         self.device = device
         self.d_k = d_k
-        log_l_k_half = int(math.log(l_k))
-        interval = 2 if int(log_l_k_half / 3) < 3 else int(log_l_k_half / 3)
-        self.filter_length = [2 ** (log_l_k_half - i) for i in range(0, log_l_k_half, interval)]
+        self.log_l_k = int(math.log2(l_k))
+        interval = 2 if int(self.log_l_k / 5) < 2 else math.ceil(self.log_l_k / 5)
+        self.filter_length = [int((2 ** (self.log_l_k - i))) for i in range(0, self.log_l_k, interval)]
+        self.filter_length = self.filter_length[1:] if len(self.filter_length) > 2 else self.filter_length
         self.conv_list_q = nn.ModuleList(
             [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
                        kernel_size=f,
@@ -324,21 +325,21 @@ class ACAT(nn.Module):
         Q_p = torch.cat(Q_l, dim=0).reshape(b, l, -1, h*d_k)
         K_p = torch.cat(K_l, dim=0).reshape(b, l_k, -1, h*d_k)
 
-        log_l_k = int(math.log2(l_k))
-        inds = [0 if i == -1 else l_k - 2**(log_l_k - i) for i in range(-1, log_l_k)]
-        inds.append(l_k - 1)
         Q = self.relu(torch.mean(Q_p, dim=-2)).reshape(b, h, l, -1) + Q
-        K = self.relu(torch.mean(K_p[:, inds, :, :], dim=-2)).reshape(b, h, -1, d_k) + K[:, :, inds, :]
+        K = self.relu(torch.mean(K_p, dim=-2)).reshape(b, h, -1, d_k) + K
+        K, index = torch.topk(K, self.log_l_k, dim=-2)
+        index = index[:, :, :, 0]
+        index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
         if attn_mask is not None:
-            attn_mask = attn_mask[:, :, :, inds]
+            attn_mask = attn_mask[:, :, :, :self.log_l_k]
             attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
             attn_mask = attn_mask.to(self.device)
             scores.masked_fill_(attn_mask, -1e9)
 
         scores_f = torch.zeros(b, h, l, l_k, device=self.device)
-        scores_f[:, :, :, inds] = scores
+        scores_f[torch.arange(b)[:, None, None,None], torch.arange(h)[None, :, None, None], torch.arange(l)[None, None,:, None], index] = scores
         attn = torch.softmax(scores_f, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
