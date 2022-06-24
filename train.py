@@ -297,13 +297,13 @@ def main():
     stack_size, heads, d_model, kernel = best_config
     print("best_config: {}".format(best_config))
 
-    erros[args.name] = list()
-    config_file[args.name] = list()
-    erros[args.name].append(float("{:.5f}".format(test_loss)))
-    erros[args.name].append(float("{:.5f}".format(mae_loss)))
-    config_file[args.name] = list()
-    config_file[args.name].append(heads)
-    config_file[args.name].append(d_model)
+    erros["{}_{}".format(args.name, args.seed)] = list()
+    config_file["{}_{}".format(args.name, args.seed)] = list()
+    erros["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(test_loss)))
+    erros["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(mae_loss)))
+    config_file["{}_{}".format(args.name, args.seed)] = list()
+    config_file["{}_{}".format(args.name, args.seed)].append(heads)
+    config_file["{}_{}".format(args.name, args.seed)].append(d_model)
 
     print("test error for best config {:.4f}".format(test_loss))
     error_path = "errors_{}_{}.json".format(args.exp_name, seq_len)
@@ -312,10 +312,10 @@ def main():
     if os.path.exists(error_path):
         with open(error_path) as json_file:
             json_dat = json.load(json_file)
-            if json_dat.get(args.name) is None:
-                json_dat[args.name] = list()
-            json_dat[args.name].append(float("{:.5f}".format(test_loss)))
-            json_dat[args.name].append(float("{:.5f}".format(mae_loss)))
+            if json_dat.get("{}_{}".format(args.name, args.seed)) is None:
+                json_dat["{}_{}".format(args.name, args.seed)] = list()
+            json_dat["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(test_loss)))
+            json_dat["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(mae_loss)))
 
         with open(error_path, "w") as json_file:
             json.dump(json_dat, json_file)
@@ -326,10 +326,10 @@ def main():
     if os.path.exists(config_path):
         with open(config_path) as json_file:
             json_dat = json.load(json_file)
-            if json_dat.get(args.name) is None:
-                json_dat[args.name] = list()
-            json_dat[args.name].append(heads)
-            json_dat[args.name].append(d_model)
+            if json_dat.get("{}_{}".format(args.name, args.seed)) is None:
+                json_dat["{}_{}".format(args.name, args.seed)] = list()
+            json_dat["{}_{}".format(args.name, args.seed)].append(heads)
+            json_dat["{}_{}".format(args.name, args.seed)].append(d_model)
 
         with open(config_path, "w") as json_file:
             json.dump(json_dat, json_file)
