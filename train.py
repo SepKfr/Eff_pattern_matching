@@ -147,7 +147,7 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
         output_map = inverse_output(output, test_y[j], test_id[j])
         p = formatter.format_predictions(output_map["predictions"])
         if p is not None:
-            forecast = torch.from_numpy(extract_numerical_data(p.to_numpy().astype('float32'))).to(device)
+            forecast = torch.from_numpy(extract_numerical_data(p).to_numpy().astype('float32')).to(device)
 
             predictions[j, :forecast.shape[0], :] = forecast
             targets = torch.from_numpy(extract_numerical_data(
