@@ -142,6 +142,7 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
     targets_all = torch.zeros(test_y.shape[0], test_y.shape[1], test_y.shape[2])
 
     for j in range(test_en.shape[0]):
+
         output = model(test_en[j], test_de[j])
         output_map = inverse_output(output, test_y[j], test_id[j])
         forecast = torch.from_numpy(extract_numerical_data(
@@ -172,7 +173,7 @@ def main():
     parser.add_argument("--exp_name", type=str, default='electricity')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
-    parser.add_argument("--total_time_steps", type=int, default=264)
+    parser.add_argument("--total_time_steps", type=int, default=312)
     args = parser.parse_args()
 
     np.random.seed(args.seed)
