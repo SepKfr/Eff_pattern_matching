@@ -297,21 +297,23 @@ class ACAT(nn.Module):
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
         self.filter_length = [3, 9, 15]
+        self.out_channels = int(d_k*h / len(self.filter_length))
         self.conv_list_q = nn.ModuleList(
-            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k * h,
+            [nn.Conv1d(in_channels=d_k * h, out_channels=self.out_channels,
                        kernel_size=f,
                        padding=int(f / 2),
                        bias=False) for f in self.filter_length]).to(device)
         self.conv_list_k = nn.ModuleList(
-            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k*h,
+            [nn.Conv1d(in_channels=d_k * h, out_channels=self.out_channels,
                        kernel_size=f,
                        padding=int(f / 2),
                        bias=False) for f in self.filter_length]).to(device)
+        self.proj_q = nn.Linear(self.out_channels, d_k*h)
+        self.proj_k = nn.Linear(self.out_channels, d_k*h)
 
-        self.norm = nn.BatchNorm1d(h * d_k).to(device)
+        self.norm = nn.BatchNorm1d(self.out_channels).to(device)
         self.activation = nn.ELU()
-        self.relu = nn.ReLU()
-        self.factor = 2
+        self.factor = 1
 
     def forward(self, Q, K, V, attn_mask):
 
@@ -323,12 +325,14 @@ class ACAT(nn.Module):
         K_l = [self.activation(self.norm(self.conv_list_k[i](K.reshape(b, h * d_k, l_k))))[:, :, :l_k]
                for i in range(len(self.filter_length))]
 
-        Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l*len(self.filter_length), d_k)
-        K_p = torch.cat(K_l, dim=0).reshape(b, h, len(self.filter_length), l_k, d_k)
-        Q = torch.topk(Q_p, l, dim=-2)[0]
-        K_p = torch.mean(K_p, dim=2)
+        Q_p = torch.cat(Q_l, dim=0).reshape(b, l*len(self.filter_length), -1)
+        K_p = torch.cat(K_l, dim=0).reshape(b, len(self.filter_length), l_k, -1)
+        Q = torch.topk(Q_p, l, dim=1)[0]
+        K = torch.mean(K_p, dim=1)
+        Q = self.proj_q(Q).reshape(b, h, l, d_k)
+        K = self.proj_k(K).reshape(b, h, l_k, d_k)
 
-        K, index = torch.topk(K_p, self.log_l_k*self.factor, dim=-2)
+        K, index = torch.topk(K, self.log_l_k*self.factor, dim=-2)
         index = index[:, :, :, 0]
         index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
