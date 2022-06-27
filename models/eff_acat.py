@@ -308,8 +308,8 @@ class ACAT(nn.Module):
                        kernel_size=f,
                        padding=int(f / 2),
                        bias=False) for f in self.filter_length]).to(device)
-        self.proj_q = nn.Linear(self.out_channels, d_k*h)
-        self.proj_k = nn.Linear(self.out_channels, d_k*h)
+        self.proj_q = nn.Linear(self.out_channels, d_k*h, device=self.device)
+        self.proj_k = nn.Linear(self.out_channels, d_k*h, device=self.device)
 
         self.norm = nn.BatchNorm1d(self.out_channels).to(device)
         self.activation = nn.ELU()
