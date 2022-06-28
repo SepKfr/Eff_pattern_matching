@@ -296,22 +296,19 @@ class ACAT(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [3, 9, 15]
-        self.out_channels = int(d_k*h / len(self.filter_length))
+        self.filter_length = [1, 3, 6, 9]
         self.conv_list_q = nn.ModuleList(
-            [nn.Conv1d(in_channels=d_k * h, out_channels=self.out_channels,
+            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k*h,
                        kernel_size=f,
                        padding=int(f / 2),
                        bias=False) for f in self.filter_length]).to(device)
         self.conv_list_k = nn.ModuleList(
-            [nn.Conv1d(in_channels=d_k * h, out_channels=self.out_channels,
+            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k*h,
                        kernel_size=f,
                        padding=int(f / 2),
                        bias=False) for f in self.filter_length]).to(device)
-        self.proj_q = nn.Linear(self.out_channels, d_k*h, device=self.device)
-        self.proj_k = nn.Linear(self.out_channels, d_k*h, device=self.device)
 
-        self.norm = nn.BatchNorm1d(self.out_channels).to(device)
+        self.norm = nn.BatchNorm1d(d_k*h).to(device)
         self.activation = nn.ELU()
         self.factor = 1
 
@@ -328,9 +325,9 @@ class ACAT(nn.Module):
         Q_p = torch.cat(Q_l, dim=0).reshape(b, l*len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, len(self.filter_length), l_k, -1)
         Q = torch.topk(Q_p, l, dim=1)[0]
+        Q = Q.reshape(b, h, l, d_k)
         K = torch.mean(K_p, dim=1)
-        Q = self.proj_q(Q).reshape(b, h, l, d_k)
-        K = self.proj_k(K).reshape(b, h, l_k, d_k)
+        K = K.reshape(b, h, l_k, d_k)
 
         K, index = torch.topk(K, self.log_l_k*self.factor, dim=-2)
         index = index[:, :, :, 0]
