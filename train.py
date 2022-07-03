@@ -132,7 +132,8 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
                  attn_type=args.attn_type,
                  seed=args.seed,
                  kernel=kernel).to(device)
-
+    if args.DataParallel:
+        model = nn.DataParallel(model)
     checkpoint = torch.load(os.path.join(path, "{}_{}".format(args.name, args.seed)))
     model.load_state_dict(checkpoint["model_state_dict"])
 
@@ -174,6 +175,7 @@ def main():
     parser.add_argument("--exp_name", type=str, default='electricity')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
+    parser.add_argument("--DataParallel", type=bool, default=False)
     parser.add_argument("--total_time_steps", type=int, default=264)
     args = parser.parse_args()
 
@@ -268,6 +270,8 @@ def main():
                      tgt_pad_index=0, device=device,
                      attn_type=args.attn_type,
                      seed=args.seed, kernel=kernel)
+        if args.DataParallel:
+            model = nn.DataParallel(model)
         model.to(device)
 
         optim = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 5000)
