@@ -48,33 +48,29 @@ class SolarFormatter(ElectricityFormatter):
 
         return (self.transform_inputs(data) for data in [train, valid, test])
 
-    def get_fixed_params(self):
-        """Returns fixed model parameters for experiments."""
-
-        fixed_params = {
-            'total_time_steps': 8 * 24,
-            'num_encoder_steps': 7 * 24,
-            'num_epochs': 50,
-            'early_stopping_patience': 5,
-            'multiprocessing_workers': 5
-        }
-
-        return fixed_params
-
     def get_default_model_params(self):
         """Returns default optimised model parameters."""
 
         model_params = {
-            'dropout_rate': 0.3,
             'hidden_layer_size': [16, 32],
-            'learning_rate': 0.001,
             'minibatch_size': [256],
-            'max_gradient_norm': 100.,
             'num_heads': 8,
-            'stack_size': 1
+            'stack_size': [1],
+            'context_lengths': [1, 3, 6, 9]
         }
 
         return model_params
+
+    def get_fixed_params(self):
+        """Returns fixed model parameters for experiments."""
+
+        fixed_params = {
+            'total_time_steps': 9 * 24,
+            'num_encoder_steps': 10 * 24,
+            'num_epochs': 50,
+        }
+
+        return fixed_params
 
     def get_num_samples_for_calibration(self):
         """Gets the default number of training and validation samples.
@@ -83,4 +79,4 @@ class SolarFormatter(ElectricityFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 128000, 16000
+        return 128000, 15360
