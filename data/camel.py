@@ -44,7 +44,7 @@ class camelFormatter(ElectricityFormatter):
         fixed_params = {
             'total_time_steps': 8 * 24,
             'num_encoder_steps': 10 * 24,
-            'num_epochs': 80,
+            'num_epochs': 50,
         }
 
         return fixed_params
