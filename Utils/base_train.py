@@ -84,7 +84,7 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, column_
               len(valid_sampling_locations), max_samples, replace=False)
         ]
     else:
-        print("exceeds maximum samples")
+        print("maximum samples exceeds {}".format(len(valid_sampling_locations)))
         ranges = [
             valid_sampling_locations[i] for i in np.random.choice(
                 len(valid_sampling_locations), len(valid_sampling_locations), replace=False)
