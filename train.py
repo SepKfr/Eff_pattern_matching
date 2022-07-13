@@ -170,8 +170,8 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='ACAT')
-    parser.add_argument("--name", type=str, default='ACAT')
+    parser.add_argument("--attn_type", type=str, default='reformer')
+    parser.add_argument("--name", type=str, default='reformer')
     parser.add_argument("--exp_name", type=str, default='electricity')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)

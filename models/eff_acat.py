@@ -4,6 +4,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 import random
+from reformer_pytorch import LSHSelfAttention
 
 
 def get_attn_subsequent_mask(seq):
@@ -415,6 +416,38 @@ class ACAT(nn.Module):
         return context, attn_f
 
 
+class ReformerLayer(nn.Module):
+    def __init__(self, d_model, n_heads, d_keys=None,
+                 d_values=None, causal=False, bucket_size=4, n_hashes=4):
+        super(ReformerLayer, self).__init__()
+        self.bucket_size = bucket_size
+        self.attn = LSHSelfAttention(
+            dim=d_model,
+            heads=n_heads,
+            bucket_size=bucket_size,
+            n_hashes=n_hashes,
+            causal=causal
+        )
+
+    def fit_length(self, queries):
+        # inside reformer: assert N % (bucket_size * 2) == 0
+        B, N, C = queries.shape
+        if N % (self.bucket_size * 2) == 0:
+            return queries
+        else:
+            # fill the time series
+            fill_len = (self.bucket_size * 2) - (N % (self.bucket_size * 2))
+            return torch.cat([queries, torch.zeros([B, fill_len, C]).to(queries.device)], dim=1)
+
+    def forward(self, queries, keys, values, attn_mask):
+        # in Reformer: defalut queries=keys
+        B, H, N, D = queries.shape
+        queries = queries.reshape(B, N, H*D)
+        B, N, C = queries.shape
+        queries = self.attn(self.fit_length(queries))[:, :N, :]
+        return queries, None
+
+
 class MultiHeadAttention(nn.Module):
 
     def __init__(self, d_model, d_k, d_v, n_heads, device, attn_type, kernel):
@@ -459,6 +492,8 @@ class MultiHeadAttention(nn.Module):
         elif self.attn_type == "informer":
             mask_flag = True if attn_mask is not None else False
             context, attn = ProbAttention(mask_flag=mask_flag)(q_s, k_s, v_s, attn_mask)
+        elif self.attn_type == "reformer":
+            context, attn = ReformerLayer(d_model=self.d_k*self.n_heads, n_heads=self.n_heads)(q_s, k_s, v_s, attn_mask)
         else:
             context, attn = AutoCorrelation()(q_s.transpose(1, 2), k_s.transpose(1, 2), v_s.transpose(1, 2), attn_mask)
         context = context.transpose(1, 2).contiguous().view(batch_size, -1, self.n_heads * self.d_v)
