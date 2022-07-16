@@ -157,7 +157,7 @@ class TrafficFormatter(GenericDataFormatter):
 
         fixed_params = {
             'total_time_steps': 9 * 24,
-            'num_encoder_steps': 10 * 24,
+            'num_encoder_steps': 7 * 24,
             'num_epochs': 50,
             'early_stopping_patience': 5,
             'multiprocessing_workers': 5
@@ -170,7 +170,7 @@ class TrafficFormatter(GenericDataFormatter):
 
         model_params = {
             'hidden_layer_size': [16, 32],
-            'minibatch_size': [256],
+            'minibatch_size': [128],
             'num_heads': 8,
             'stack_size': [1],
             'context_lengths': [1, 3, 6, 9]
@@ -185,6 +185,6 @@ class TrafficFormatter(GenericDataFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 128000, 15360
+        return 128000, 16384
 
 
