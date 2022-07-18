@@ -325,10 +325,10 @@ class KittyCatFull(nn.Module):
                for i in range(len(self.filter_length))]
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, l*len(self.filter_length), -1)
-        K_p = torch.cat(K_l, dim=0).reshape(b, len(self.filter_length), l_k, -1)
+        K_p = torch.cat(K_l, dim=0).reshape(b, l_k*len(self.filter_length), -1)
         Q = torch.topk(Q_p, l, dim=1)[0]
         Q = Q.reshape(b, h, l, d_k)
-        K = torch.topk(K_p, l, dim=1)[0]
+        K = torch.topk(K_p, l_k, dim=1)[0]
         K = K.reshape(b, h, l_k, d_k)
 
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
