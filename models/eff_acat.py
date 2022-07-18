@@ -288,6 +288,62 @@ class BasicAttn(nn.Module):
         return context, attn
 
 
+class KittyCatFull(nn.Module):
+    def __init__(self, d_k, device, h, l_k):
+
+        super(KittyCatFull, self).__init__()
+
+        self.device = device
+        self.d_k = d_k
+        self.log_l_k = int(math.log2(l_k))
+        interval = 2 if int(self.log_l_k / 5) < 2 else math.ceil(self.log_l_k / 5)
+        self.filter_length = [int((2 ** (self.log_l_k - i))) for i in range(0, self.log_l_k, interval)]
+        self.filter_length = self.filter_length[1:] if len(self.filter_length) > 2 else self.filter_length
+        self.conv_list_q = nn.ModuleList(
+            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k*h,
+                       kernel_size=f,
+                       padding=int(f / 2),
+                       bias=False) for f in self.filter_length]).to(device)
+        self.conv_list_k = nn.ModuleList(
+            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k*h,
+                       kernel_size=f,
+                       padding=int(f / 2),
+                       bias=False) for f in self.filter_length]).to(device)
+
+        self.norm = nn.BatchNorm1d(d_k*h).to(device)
+        self.activation = nn.ELU()
+        self.factor = 1
+
+    def forward(self, Q, K, V, attn_mask):
+
+        b, h, l, d_k = Q.shape
+        l_k = K.shape[2]
+
+        Q_l = [self.activation(self.norm(self.conv_list_q[i](Q.reshape(b, h * d_k, l))))[:, :, :l]
+               for i in range(len(self.filter_length))]
+        K_l = [self.activation(self.norm(self.conv_list_k[i](K.reshape(b, h * d_k, l_k))))[:, :, :l_k]
+               for i in range(len(self.filter_length))]
+
+        Q_p = torch.cat(Q_l, dim=0).reshape(b, l*len(self.filter_length), -1)
+        K_p = torch.cat(K_l, dim=0).reshape(b, len(self.filter_length), l_k, -1)
+        Q = torch.topk(Q_p, l, dim=1)[0]
+        Q = Q.reshape(b, h, l, d_k)
+        K = torch.topk(K_p, l, dim=1)[0]
+        K = K.reshape(b, h, l_k, d_k)
+
+        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
+
+        if attn_mask is not None:
+
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
+
+        attn = torch.softmax(scores, -1)
+        context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
+        return context, attn
+
+
 class KittyCat(nn.Module):
 
     def __init__(self, d_k, device, h, l_k):
@@ -482,6 +538,9 @@ class MultiHeadAttention(nn.Module):
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "KittyCat":
             context, attn = KittyCat(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
+                Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
+        elif self.attn_type == "KittyCatFull":
+            context, attn = KittyCatFull(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "basic_attn":
             context, attn = BasicAttn(d_k=self.d_k, device=self.device)(
