@@ -715,7 +715,7 @@ class Decoder(nn.Module):
 
 class Attn(nn.Module):
 
-    def __init__(self, src_input_size, tgt_input_size, pred_len, d_model,
+    def __init__(self, src_input_size, tgt_input_size, d_model,
                  d_ff, d_k, d_v, n_heads, n_layers, src_pad_index,
                  tgt_pad_index, device, attn_type, kernel, seed):
         super(Attn, self).__init__()
@@ -740,7 +740,6 @@ class Attn(nn.Module):
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)
         self.attn_type = attn_type
         self.projection = nn.Linear(d_model, 1, bias=False)
-        self.pred_len = pred_len
 
     def forward(self, enc_inputs, dec_inputs):
 
@@ -748,6 +747,5 @@ class Attn(nn.Module):
         dec_inputs = self.dec_embedding(dec_inputs)
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
         dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
-        dec_outputs = dec_outputs[:, -self.pred_len:, :]
         dec_logits = self.projection(dec_outputs)
         return dec_logits

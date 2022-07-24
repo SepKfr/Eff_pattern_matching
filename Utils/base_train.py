@@ -106,6 +106,7 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, column_
     input_size = len(enc_input_cols)
     inputs = np.zeros((max_samples, time_steps, input_size))
     enc_inputs = np.zeros((max_samples, num_encoder_steps, input_size))
+    dec_inputs = np.zeros((max_samples, time_steps - num_encoder_steps, input_size - 1))
     outputs = np.zeros((max_samples, time_steps, 1))
     time = np.empty((max_samples, time_steps, 1), dtype=object)
     identifiers = np.empty((max_samples, time_steps, 1), dtype=object)
@@ -117,6 +118,7 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, column_
         sliced = split_data_map[identifier].iloc[start_idx -
                                                time_steps:start_idx]
         enc_inputs[i, :, :] = sliced[enc_input_cols].iloc[:num_encoder_steps]
+        dec_inputs[i, :, :] = sliced[dec_input_cols].iloc[num_encoder_steps:]
         inputs[i, :, :] = sliced[enc_input_cols]
         outputs[i, :, :] = sliced[[target_col]]
         time[i, :, 0] = sliced[time_col]
@@ -125,6 +127,7 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, column_
     sampled_data = {
         'inputs': inputs,
         'enc_inputs': enc_inputs,
+        'dec_inputs': dec_inputs,
         'outputs': outputs[:, num_encoder_steps:, :],
         'active_entries': np.ones_like(outputs[:, num_encoder_steps:, :]),
         'time': time,
