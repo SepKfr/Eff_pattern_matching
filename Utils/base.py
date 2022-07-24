@@ -20,10 +20,6 @@ import abc
 import numpy as np
 import random
 
-np.random.seed(21)
-random.seed(21)
-
-
 # Type defintions
 class DataTypes(enum.IntEnum):
     """Defines numerical types of each column."""
@@ -137,7 +133,7 @@ class GenericDataFormatter(abc.ABC):
         """Returns fixed model parameters for experiments."""
 
         required_keys = [
-            'total_time_steps', 'num_encoder_steps'
+           'num_encoder_steps'
         ]
 
         fixed_params = self.get_fixed_params()
