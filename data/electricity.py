@@ -34,25 +34,26 @@ class ElectricityFormatter(GenericDataFormatter):
     identifiers: Entity identifiers used in experiments.
     """
 
-    _column_definition = [
-      ('id', DataTypes.REAL_VALUED, InputTypes.ID),
-      ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.TIME),
-      ('power_usage', DataTypes.REAL_VALUED, InputTypes.TARGET),
-      ('hour', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-      ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-      ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-      ('categorical_id', DataTypes.CATEGORICAL, InputTypes.STATIC_INPUT),
-    ]
-
-    def __init__(self):
+    def __init__(self, pred_len):
         """Initialises formatter."""
-
+        super(ElectricityFormatter, self).__init__()
+        self._pred_len = pred_len
         self.identifiers = None
         self._real_scalers = None
         self._cat_scalers = None
         self._target_scaler = None
         self._num_classes_per_cat_input = None
-        self._time_steps = self.get_fixed_params()['total_time_steps']
+        self._time_steps = self.get_fixed_params()['num_encoder_steps'] + pred_len * 2
+
+    _column_definition = [
+        ('id', DataTypes.REAL_VALUED, InputTypes.ID),
+        ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.TIME),
+        ('power_usage', DataTypes.REAL_VALUED, InputTypes.TARGET),
+        ('hour', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('categorical_id', DataTypes.CATEGORICAL, InputTypes.STATIC_INPUT),
+    ]
 
     def split_data(self, df, valid_boundary=1315, test_boundary=1339):
         """Splits data_set frame into training-validation-test data_set frames.
@@ -222,8 +223,9 @@ class ElectricityFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 9 * 24,
-            'num_encoder_steps': 10 * 24,
+            'total_time_steps': 7 * 24 + 2 * self._pred_len,
+            'num_encoder_steps': 7 * 24,
+            'num_decoder_steps': self._pred_len,
             'num_epochs': 50,
         }
 

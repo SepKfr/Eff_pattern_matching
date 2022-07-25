@@ -25,6 +25,9 @@ InputTypes = base.InputTypes
 
 class TrafficFormatter(GenericDataFormatter):
 
+    def __int__(self, pred_len):
+        self._pred_len = pred_len
+
     _column_definition = [
         ('id', DataTypes.REAL_VALUED, InputTypes.ID),
         ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.TIME),
@@ -156,8 +159,9 @@ class TrafficFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 9 * 24,
-            'num_encoder_steps': 10 * 24,
+            'total_time_steps': 7 * 24 + 2 * self._pred_len,
+            'num_encoder_steps': 7 * 24,
+            'num_decoder_steps': self._pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,
             'multiprocessing_workers': 5

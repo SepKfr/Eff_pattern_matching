@@ -170,13 +170,13 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='KittyCatFull')
-    parser.add_argument("--name", type=str, default='KittyCat')
+    parser.add_argument("--attn_type", type=str, default='basic_attn')
+    parser.add_argument("--name", type=str, default='basic_attn')
     parser.add_argument("--exp_name", type=str, default='electricity')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--DataParallel", type=bool, default=False)
-    parser.add_argument("--total_time_steps", type=int, default=264)
+    parser.add_argument("--pred_len", type=int, default=24)
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -187,7 +187,7 @@ def main():
     if torch.cuda.is_available():
         print("Running on GPU")
 
-    config = ExperimentConfig(args.exp_name)
+    config = ExperimentConfig(args.pred_len, args.exp_name)
     formatter = config.make_data_formatter()
 
     data_csv_path = "{}.csv".format(args.exp_name)
@@ -197,24 +197,25 @@ def main():
     train_data, valid, test = formatter.split_data(raw_data)
     train_max, valid_max = formatter.get_num_samples_for_calibration()
     params = formatter.get_experiment_params()
-    params['total_time_steps'] = args.total_time_steps
 
     sample_data = batch_sampled_data(train_data, train_max, params['total_time_steps'],
-                       params['num_encoder_steps'], params["column_definition"], args.seed)
+                       params['num_encoder_steps'], args.pred_len, params["column_definition"], args.seed)
     train_en, train_de, train_y, train_id = torch.from_numpy(sample_data['enc_inputs']).to(device), \
                                             torch.from_numpy(sample_data['dec_inputs']).to(device), \
                                  torch.from_numpy(sample_data['outputs']).to(device), \
                                  sample_data['identifier']
 
     sample_data = batch_sampled_data(valid, valid_max, params['total_time_steps'],
-                                     params['num_encoder_steps'], params["column_definition"], args.seed)
+                                     params['num_encoder_steps'], args.pred_len,
+                                     params["column_definition"], args.seed)
     valid_en, valid_de, valid_y, valid_id = torch.from_numpy(sample_data['enc_inputs']).to(device), \
                                             torch.from_numpy(sample_data['dec_inputs']).to(device), \
                                  torch.from_numpy(sample_data['outputs']).to(device), \
                                  sample_data['identifier']
 
     sample_data = batch_sampled_data(test, valid_max, params['total_time_steps'],
-                                     params['num_encoder_steps'], params["column_definition"], args.seed)
+                                     params['num_encoder_steps'], args.pred_len,
+                                     params["column_definition"], args.seed)
     test_en, test_de, test_y, test_id =torch.from_numpy(sample_data['enc_inputs']).to(device), \
                                             torch.from_numpy(sample_data['dec_inputs']).to(device), \
                                  torch.from_numpy(sample_data['outputs']).to(device), \
@@ -222,8 +223,7 @@ def main():
 
     model_params = formatter.get_default_model_params()
 
-    seq_len = params['total_time_steps'] - params['num_encoder_steps']
-    path = "models_{}_{}".format(args.exp_name, seq_len)
+    path = "models_{}_{}".format(args.exp_name, args.pred_len)
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -312,8 +312,8 @@ def main():
     config_file["{}_{}".format(args.name, args.seed)].append(d_model)
 
     print("test error for best config {:.4f}".format(test_loss))
-    error_path = "errors_{}_{}.json".format(args.exp_name, seq_len)
-    config_path = "configs_{}_{}.json".format(args.exp_name, seq_len)
+    error_path = "errors_{}_{}.json".format(args.exp_name, args.pred_len)
+    config_path = "configs_{}_{}.json".format(args.exp_name, args.pred_len)
 
     if os.path.exists(error_path):
         with open(error_path) as json_file:
