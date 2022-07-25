@@ -109,7 +109,7 @@ def create_config(hyper_parameters):
     return list(random.sample(set(prod), len(prod)))
 
 
-def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatter, path, device):
+def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatter, path, device, seq_len):
 
     stack_size, n_heads, d_model, kernel = config
     d_k = int(d_model / n_heads)
@@ -124,6 +124,7 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
 
     model = Attn(src_input_size=test_en.shape[3],
                  tgt_input_size=test_de.shape[3],
+                 pred_len=seq_len,
                  d_model=d_model,
                  d_ff=d_model * 4,
                  d_k=d_k, d_v=d_k, n_heads=n_heads,
@@ -170,8 +171,8 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='KittyCatFull')
-    parser.add_argument("--name", type=str, default='KittyCat')
+    parser.add_argument("--attn_type", type=str, default='basic_attn')
+    parser.add_argument("--name", type=str, default='basic_attn')
     parser.add_argument("--exp_name", type=str, default='electricity')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
@@ -198,25 +199,26 @@ def main():
     train_max, valid_max = formatter.get_num_samples_for_calibration()
     params = formatter.get_experiment_params()
     params['total_time_steps'] = args.total_time_steps
+    en_steps = params['num_encoder_steps'] - params['num_decoder_steps']
 
     sample_data = batch_sampled_data(train_data, train_max, params['total_time_steps'],
                        params['num_encoder_steps'], params["column_definition"], args.seed)
-    train_en, train_de, train_y, train_id = torch.from_numpy(sample_data['enc_inputs']).to(device), \
-                                            torch.from_numpy(sample_data['dec_inputs']).to(device), \
+    train_en, train_de, train_y, train_id = torch.from_numpy(sample_data['enc_inputs'][:, :en_steps, :]).to(device), \
+                                            torch.from_numpy(sample_data['enc_inputs'][:, -en_steps:, :]).to(device), \
                                  torch.from_numpy(sample_data['outputs']).to(device), \
                                  sample_data['identifier']
 
     sample_data = batch_sampled_data(valid, valid_max, params['total_time_steps'],
                                      params['num_encoder_steps'], params["column_definition"], args.seed)
-    valid_en, valid_de, valid_y, valid_id = torch.from_numpy(sample_data['enc_inputs']).to(device), \
-                                            torch.from_numpy(sample_data['dec_inputs']).to(device), \
+    valid_en, valid_de, valid_y, valid_id = torch.from_numpy(sample_data['enc_inputs'][:, :en_steps, :]).to(device), \
+                                            torch.from_numpy(sample_data['enc_inputs'][:, -en_steps:, :]).to(device), \
                                  torch.from_numpy(sample_data['outputs']).to(device), \
                                  sample_data['identifier']
 
     sample_data = batch_sampled_data(test, valid_max, params['total_time_steps'],
                                      params['num_encoder_steps'], params["column_definition"], args.seed)
-    test_en, test_de, test_y, test_id =torch.from_numpy(sample_data['enc_inputs']).to(device), \
-                                            torch.from_numpy(sample_data['dec_inputs']).to(device), \
+    test_en, test_de, test_y, test_id = torch.from_numpy(sample_data['enc_inputs'][:, :en_steps, :]).to(device), \
+                                            torch.from_numpy(sample_data['enc_inputs'][:, -en_steps:, :]).to(device), \
                                  torch.from_numpy(sample_data['outputs']).to(device), \
                                  sample_data['identifier']
 
@@ -263,6 +265,7 @@ def main():
 
         model = Attn(src_input_size=train_en_p.shape[3],
                      tgt_input_size=train_de_p.shape[3],
+                     pred_len=seq_len,
                      d_model=d_model,
                      d_ff=d_model*4,
                      d_k=d_k, d_v=d_k, n_heads=n_heads,
@@ -298,7 +301,7 @@ def main():
 
     test_loss, mae_loss = evaluate(best_config, args, test_en_p.to(device),
                                    test_de_p.to(device), test_y_p.to(device),
-                                   test_id_p, criterion, formatter, path, device)
+                                   test_id_p, criterion, formatter, path, device, seq_len)
 
     stack_size, heads, d_model, kernel = best_config
     print("best_config: {}".format(best_config))

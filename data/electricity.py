@@ -52,7 +52,6 @@ class ElectricityFormatter(GenericDataFormatter):
         self._cat_scalers = None
         self._target_scaler = None
         self._num_classes_per_cat_input = None
-        self._time_steps = self.get_fixed_params()['total_time_steps']
 
     def split_data(self, df, valid_boundary=1315, test_boundary=1339):
         """Splits data_set frame into training-validation-test data_set frames.
@@ -101,17 +100,13 @@ class ElectricityFormatter(GenericDataFormatter):
         identifiers = []
         for identifier, sliced in df.groupby(id_column):
 
-          if len(sliced) >= self._time_steps:
-
             data = sliced[real_inputs].values
             targets = sliced[[target_column]].values
-            self._real_scalers[identifier] \
-          = sklearn.preprocessing.StandardScaler().fit(data)
+            self._real_scalers[identifier] = sklearn.preprocessing.StandardScaler().fit(data)
 
-            self._target_scaler[identifier] \
-          = sklearn.preprocessing.StandardScaler().fit(targets)
+            self._target_scaler[identifier] = sklearn.preprocessing.StandardScaler().fit(targets)
 
-          identifiers.append(identifier)
+            identifiers.append(identifier)
 
         # Format categorical scalers
         categorical_inputs = utils.extract_cols_from_data_type(
@@ -161,11 +156,11 @@ class ElectricityFormatter(GenericDataFormatter):
         df_list = []
         for identifier, sliced in df.groupby(id_col):
             # Filter out any trajectories that are too short
-            if len(sliced) >= self._time_steps:
-                sliced_copy = sliced.copy()
-                sliced_copy[real_inputs] = self._real_scalers[identifier].transform(
-                    sliced_copy[real_inputs].values)
-                df_list.append(sliced_copy)
+
+            sliced_copy = sliced.copy()
+            sliced_copy[real_inputs] = self._real_scalers[identifier].transform(
+                sliced_copy[real_inputs].values)
+            df_list.append(sliced_copy)
 
         output = pd.concat(df_list, axis=0)
 
@@ -222,8 +217,8 @@ class ElectricityFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 9 * 24,
             'num_encoder_steps': 10 * 24,
+            'num_decoder_steps': 3 * 24,
             'num_epochs': 50,
         }
 
