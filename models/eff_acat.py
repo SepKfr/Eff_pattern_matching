@@ -259,6 +259,10 @@ class ConvAttn(nn.Module):
         K = self.activation(self.norm(self.conv_k(K.reshape(b, h*d_k, l_k))))[:, :, :l_k].reshape(b, h, l_k, d_k)
 
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
+        if attn_mask is not None:
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhvd->bhqd', attn, V)
         return context, attn
@@ -275,6 +279,10 @@ class BasicAttn(nn.Module):
     def forward(self, Q, K, V, attn_mask):
 
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
+        if attn_mask is not None:
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhvd->bhqd', attn, V)
         return context, attn
@@ -324,6 +332,12 @@ class KittyCatFull(nn.Module):
         K = K.reshape(b, h, l_k, d_k)
 
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
+
+        if attn_mask is not None:
+
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
 
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
@@ -378,6 +392,12 @@ class KittyCat(nn.Module):
         index = index[:, :, :, 0]
         index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
+
+        if attn_mask is not None:
+            attn_mask = attn_mask[:, :, :, :self.log_l_k*self.factor]
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
 
         scores_f = torch.zeros(b, h, l, l_k, device=self.device)
         scores_f[torch.arange(b)[:, None, None, None],
