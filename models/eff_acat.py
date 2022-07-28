@@ -288,6 +288,33 @@ class BasicAttn(nn.Module):
         return context, attn
 
 
+class LogTrans(nn.Module):
+    def __init__(self, d_k, device):
+
+        super(LogTrans, self).__init__()
+        self.device = device
+        self.d_k = d_k
+
+    def forward(self, Q, K, V, attn_mask):
+
+        l_k = K.shape[2]
+        log_l_k = int(math.log2(l_k))
+        inds = [l_k - 2 ** (log_l_k - i) for i in range(0, log_l_k)]
+        K = K[:, :, inds, :]
+        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
+
+        if attn_mask is not None:
+            attn_mask = attn_mask[:, :, :, inds]
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
+
+        attn = torch.softmax(scores, -1)
+        V = V[:, :, inds, :]
+        context = torch.einsum('bhqk,bhvd->bhqd', attn, V)
+        return context, attn
+
+
 class KittyCatFull(nn.Module):
     def __init__(self, d_k, device, h, l_k):
 
@@ -545,6 +572,9 @@ class MultiHeadAttention(nn.Module):
         elif self.attn_type == "basic_attn":
             context, attn = BasicAttn(d_k=self.d_k, device=self.device)(
             Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
+        elif self.attn_type == "LogTrans":
+            context, attn = LogTrans(d_k=self.d_k, device=self.device)(
+                Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "conv_attn":
             context, attn = ConvAttn(d_k=self.d_k, device=self.device, kernel=self.kernel, h=self.n_heads)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
