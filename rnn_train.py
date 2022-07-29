@@ -62,7 +62,7 @@ def train(args, model, train_en, train_de, train_y,
     stop = False
     try:
         total_loss = 0
-
+        model.train()
         for batch_id in range(train_en.shape[0]):
             output = model(train_en[batch_id], train_de[batch_id])
             loss = criterion(output, train_y[batch_id])
