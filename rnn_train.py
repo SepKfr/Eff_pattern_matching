@@ -251,13 +251,13 @@ def main():
         stack_size, d_model = conf
 
         model = RNN(n_layers=stack_size,
-                  hidden_size=d_model,
-                  src_input_size=train_en_p.shape[3],
-                  tgt_input_size=train_de_p.shape[3],
-                  rnn_type="lstm",
-                  device=device,
-                  d_r=0,
-                  seed=args.seed)
+                    hidden_size=d_model,
+                    src_input_size=train_en_p.shape[3],
+                    tgt_input_size=train_de_p.shape[3],
+                    rnn_type="lstm",
+                    device=device,
+                    d_r=0,
+                    seed=args.seed)
         model.to(device)
 
         optim = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 5000)
@@ -286,7 +286,7 @@ def main():
                                    test_de_p.to(device), test_y_p.to(device),
                                    test_id_p, criterion, formatter, path, device)
 
-    stack_size, heads, d_model, kernel = best_config
+    stack_size, d_model = best_config
     print("best_config: {}".format(best_config))
 
     erros["{}_{}".format(args.name, args.seed)] = list()
@@ -294,7 +294,6 @@ def main():
     erros["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(test_loss)))
     erros["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(mae_loss)))
     config_file["{}_{}".format(args.name, args.seed)] = list()
-    config_file["{}_{}".format(args.name, args.seed)].append(heads)
     config_file["{}_{}".format(args.name, args.seed)].append(d_model)
 
     print("test error for best config {:.4f}".format(test_loss))
@@ -320,7 +319,6 @@ def main():
             json_dat = json.load(json_file)
             if json_dat.get("{}_{}".format(args.name, args.seed)) is None:
                 json_dat["{}_{}".format(args.name, args.seed)] = list()
-            json_dat["{}_{}".format(args.name, args.seed)].append(heads)
             json_dat["{}_{}".format(args.name, args.seed)].append(d_model)
 
         with open(config_path, "w") as json_file:
