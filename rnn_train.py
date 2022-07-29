@@ -21,39 +21,6 @@ erros = dict()
 config_file = dict()
 
 
-class NoamOpt:
-
-    def __init__(self, optimizer, lr_mul, d_model, n_warmup_steps):
-        self._optimizer = optimizer
-        self.lr_mul = lr_mul
-        self.d_model = d_model
-        self.n_warmup_steps = n_warmup_steps
-        self.n_steps = 0
-
-    def step_and_update_lr(self):
-        "Step with the inner optimizer"
-        self._update_learning_rate()
-        self._optimizer.step()
-
-    def zero_grad(self):
-        "Zero out the gradients with the inner optimizer"
-        self._optimizer.zero_grad()
-
-    def _get_lr_scale(self):
-        d_model = self.d_model
-        n_steps, n_warmup_steps = self.n_steps, self.n_warmup_steps
-        return (d_model ** -0.5) * min(n_steps ** (-0.5), n_steps * n_warmup_steps ** (-1.5))
-
-    def _update_learning_rate(self):
-        ''' Learning rate scheduling per step '''
-
-        self.n_steps += 1
-        lr = self.lr_mul * self._get_lr_scale()
-
-        for param_group in self._optimizer.param_groups:
-            param_group['lr'] = lr
-
-
 def train(args, model, train_en, train_de, train_y,
           test_en, test_de, test_y, epoch, e
           , val_loss, val_inner_loss, optimizer,
@@ -69,7 +36,7 @@ def train(args, model, train_en, train_de, train_y,
             total_loss += loss.item()
             optimizer.zero_grad()
             loss.backward()
-            optimizer.step_and_update_lr()
+            optimizer.step()
 
         print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
@@ -260,7 +227,7 @@ def main():
                     seed=args.seed)
         model.to(device)
 
-        optim = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 5000)
+        optim = Adam(model.parameters())
 
         epoch_start = 0
 
