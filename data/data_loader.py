@@ -34,7 +34,7 @@ class ExperimentConfig(object):
     default_experiments = ['electricity', 'traffic', 'air_quality', 'camel',
                            'favorita', 'watershed', 'solar', 'ETTm2', 'weather']
 
-    def __init__(self, experiment='electricity', root_folder=None):
+    def __init__(self, pred_len, experiment='electricity', root_folder=None):
 
         if experiment not in self.default_experiments:
             raise ValueError('Unrecognised experiment={}'.format(experiment))
@@ -47,6 +47,7 @@ class ExperimentConfig(object):
         self.root_folder = root_folder
         self.experiment = experiment
         self.data_folder = os.path.join(root_folder, '', experiment)
+        self.pred_len = pred_len
 
         for relevant_directory in [
             self.root_folder, self.data_folder
@@ -87,7 +88,7 @@ class ExperimentConfig(object):
             'camel': camel.camelFormatter
         }
 
-        return data_formatter_class[self.experiment]()
+        return data_formatter_class[self.experiment](self.pred_len)
 
 
 def download_from_url(url, output_path):

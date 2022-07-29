@@ -34,6 +34,9 @@ class WatershedFormatter(DataFormatter):
         identifiers: Entity identifiers used in experiments.
         """
 
+    def __init__(self, pred_len):
+        super(WatershedFormatter, self).__init__(pred_len)
+
     _column_definition = [
         ('id', DataTypes.REAL_VALUED, InputTypes.ID),
         ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.TIME),
@@ -108,8 +111,9 @@ class WatershedFormatter(DataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 9 * 24,
-            'num_encoder_steps': 10 * 24,
+            'total_time_steps': 7 * 24 + 2 * self.pred_len,
+            'num_encoder_steps': 7 * 24,
+            'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,
             'multiprocessing_workers': 5
