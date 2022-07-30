@@ -390,8 +390,6 @@ class KittyCat(nn.Module):
             T.GaussianBlur(kernel_size=f, sigma=(0.1, 2.0)) for f in self.filter_length]
         ).to(device)
 
-        self.norm = nn.BatchNorm1d(d_k*h).to(device)
-        self.activation = nn.ELU()
         self.factor = 1
 
     def forward(self, Q, K, V, attn_mask):
@@ -400,11 +398,13 @@ class KittyCat(nn.Module):
         l_k = K.shape[2]
         Q_l = []
         K_l = []
+        Q = Q.reshape(b, h * d_k, l)
+        K = K.reshape(b, h * d_k, l_k)
 
         for i in range(len(self.filter_length)):
 
-            Q = self.gaussian_list_q[i](Q.reshape(b, h * d_k, l))
-            K = self.gaussian_list_k[i](K.reshape(b, h * d_k, l_k))
+            Q = self.gaussian_list_q[i](Q)
+            K = self.gaussian_list_k[i](K)
             Q_l.append(Q)
             K_l.append(K)
 
@@ -418,6 +418,12 @@ class KittyCat(nn.Module):
         K, index = torch.topk(K, self.log_l_k*self.factor, dim=-2)
         index = index[:, :, :, 0]
         index = index.unsqueeze(-2).repeat(1, 1, l, 1)
+        '''
+        normalize Q and K 
+        '''
+        Q = Q / torch.linalg.norm(Q, dim=-1, ord=2).unsqueeze(-1).repeat(1, 1, 1, d_k)
+        K = K / torch.linalg.norm(K, dim=-1, ord=2).unsqueeze(-1).repeat(1, 1, 1, d_k)
+
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
         if attn_mask is not None:
