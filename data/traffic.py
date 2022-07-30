@@ -35,7 +35,9 @@ class TrafficFormatter(GenericDataFormatter):
         ('categorical_id', DataTypes.CATEGORICAL, InputTypes.STATIC_INPUT),
     ]
 
-    def __int__(self, pred_len):
+    def __init__(self, pred_len):
+        """Initialises formatter."""
+
         self.pred_len = pred_len
 
     def split_data(self, df, valid_boundary=151, test_boundary=166):
