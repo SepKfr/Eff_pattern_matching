@@ -25,9 +25,6 @@ InputTypes = base.InputTypes
 
 class TrafficFormatter(GenericDataFormatter):
 
-    def __int__(self, pred_len):
-        self.pred_len = pred_len
-
     _column_definition = [
         ('id', DataTypes.REAL_VALUED, InputTypes.ID),
         ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.TIME),
@@ -37,6 +34,9 @@ class TrafficFormatter(GenericDataFormatter):
         ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('categorical_id', DataTypes.CATEGORICAL, InputTypes.STATIC_INPUT),
     ]
+
+    def __int__(self, pred_len):
+        self.pred_len = pred_len
 
     def split_data(self, df, valid_boundary=151, test_boundary=166):
         """Splits data_set frame into training-validation-test data_set frames.
