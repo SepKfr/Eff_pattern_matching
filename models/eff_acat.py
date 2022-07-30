@@ -384,10 +384,10 @@ class KittyCat(nn.Module):
         self.log_l_k = int(math.log2(l_k))
         self.filter_length = [3, 9, 15]
         self.gaussian_list_q = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=2.0) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=3) for f in self.filter_length]
         ).to(device)
         self.gaussian_list_k = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=2.0) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=3) for f in self.filter_length]
         ).to(device)
 
         self.factor = 1
@@ -418,12 +418,6 @@ class KittyCat(nn.Module):
         K, index = torch.topk(K, self.log_l_k*self.factor, dim=-2)
         index = index[:, :, :, 0]
         index = index.unsqueeze(-2).repeat(1, 1, l, 1)
-        '''
-        normalize Q and K 
-        '''
-        Q = Q / torch.linalg.norm(Q, dim=-1, ord=2).unsqueeze(-1).repeat(1, 1, 1, d_k)
-        K = K / torch.linalg.norm(K, dim=-1, ord=2).unsqueeze(-1).repeat(1, 1, 1, d_k)
-
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
         if attn_mask is not None:
