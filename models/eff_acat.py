@@ -382,15 +382,12 @@ class KittyCat(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        '''interval = 2 if int(self.log_l_k / 5) < 2 else math.ceil(self.log_l_k / 5)
-        self.filter_length = [int((2 ** (self.log_l_k - i))) for i in range(0, self.log_l_k, interval)]
-        self.filter_length = self.filter_length[1:] if len(self.filter_length) > 2 else self.filter_length'''
-        self.filter_length = [1, 3, 9, 15]
+        self.filter_length = [3, 9, 15]
         self.gaussian_list_q = nn.ModuleList([
-            T.GaussianBlur(kernel_size=(1, f), sigma=(0.1, 2.0)) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(0.1, 2.0)) for f in self.filter_length]
         ).to(device)
         self.gaussian_list_k = nn.ModuleList([
-            T.GaussianBlur(kernel_size=(1, f), sigma=(0.1, 2.0)) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(0.1, 2.0)) for f in self.filter_length]
         ).to(device)
 
         self.norm = nn.BatchNorm1d(d_k*h).to(device)
@@ -401,11 +398,15 @@ class KittyCat(nn.Module):
 
         b, h, l, d_k = Q.shape
         l_k = K.shape[2]
+        Q_l = []
+        K_l = []
 
-        Q_l = [self.gaussian_list_q[i](Q.reshape(b, h * d_k, l))[:, :, :l]
-               for i in range(len(self.filter_length))]
-        K_l = [self.gaussian_list_q[i](K.reshape(b, h * d_k, l_k))[:, :, :l_k]
-               for i in range(len(self.filter_length))]
+        for i in range(len(self.filter_length)):
+
+            Q = self.gaussian_list_q[i](Q.reshape(b, h * d_k, l))
+            K = self.gaussian_list_k[i](K.reshape(b, h * d_k, l_k))
+            Q_l.append(Q)
+            K_l.append(K)
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, l*len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, len(self.filter_length), l_k, -1)
