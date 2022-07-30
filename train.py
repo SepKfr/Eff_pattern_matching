@@ -1,4 +1,4 @@
-from models.eff_acat import Attn
+from models.eff_acat import Transformer
 from torch.optim import Adam
 import torch.nn as nn
 import numpy as np
@@ -122,7 +122,7 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
             if col not in {"forecast_time", "identifier"}
         ]]
 
-    model = Attn(src_input_size=test_en.shape[3],
+    model = Transformer(src_input_size=test_en.shape[3],
                  tgt_input_size=test_de.shape[3],
                  d_model=d_model,
                  d_ff=d_model * 4,
@@ -259,15 +259,15 @@ def main():
         stack_size, n_heads, d_model, kernel = conf
         d_k = int(d_model / n_heads)
 
-        model = Attn(src_input_size=train_en_p.shape[3],
-                     tgt_input_size=train_de_p.shape[3],
-                     d_model=d_model,
-                     d_ff=d_model*4,
-                     d_k=d_k, d_v=d_k, n_heads=n_heads,
-                     n_layers=stack_size, src_pad_index=0,
-                     tgt_pad_index=0, device=device,
-                     attn_type=args.attn_type,
-                     seed=args.seed, kernel=kernel)
+        model = Transformer(src_input_size=train_en_p.shape[3],
+                            tgt_input_size=train_de_p.shape[3],
+                            d_model=d_model,
+                            d_ff=d_model*4,
+                            d_k=d_k, d_v=d_k, n_heads=n_heads,
+                            n_layers=stack_size, src_pad_index=0,
+                            tgt_pad_index=0, device=device,
+                            attn_type=args.attn_type,
+                            seed=args.seed, kernel=kernel)
         if args.DataParallel:
             model = nn.DataParallel(model)
         model.to(device)

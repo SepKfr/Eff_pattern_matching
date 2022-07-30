@@ -392,16 +392,6 @@ class KittyCat(nn.Module):
         self.gaussian_list_k = nn.ModuleList([
             T.GaussianBlur(kernel_size=(1, f), sigma=(0.1, 2.0)) for f in self.filter_length]
         ).to(device)
-        self.conv_list_q = nn.ModuleList(
-            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k*h,
-                       kernel_size=f,
-                       padding=int(f / 2),
-                       bias=False) for f in self.filter_length]).to(device)
-        self.conv_list_k = nn.ModuleList(
-            [nn.Conv1d(in_channels=d_k * h, out_channels=d_k*h,
-                       kernel_size=f,
-                       padding=int(f / 2),
-                       bias=False) for f in self.filter_length]).to(device)
 
         self.norm = nn.BatchNorm1d(d_k*h).to(device)
         self.activation = nn.ELU()
@@ -752,12 +742,12 @@ class Decoder(nn.Module):
         return dec_outputs, dec_self_attns, dec_enc_attns
 
 
-class Attn(nn.Module):
+class Transformer(nn.Module):
 
     def __init__(self, src_input_size, tgt_input_size, d_model,
                  d_ff, d_k, d_v, n_heads, n_layers, src_pad_index,
                  tgt_pad_index, device, attn_type, kernel, seed):
-        super(Attn, self).__init__()
+        super(Transformer, self).__init__()
 
         torch.manual_seed(seed)
         random.seed(seed)
