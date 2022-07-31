@@ -398,26 +398,29 @@ class KittyCat(nn.Module):
         l_k = K.shape[2]
         Q_l = []
         K_l = []
+        V_l = []
         Q = Q.reshape(b, h * d_k, l)
         K = K.reshape(b, h * d_k, l_k)
+        V = V.reshape(b, h * d_k, l_k)
 
         for i in range(len(self.filter_length)):
 
             Q = self.gaussian_list_q[i](Q)
             K = self.gaussian_list_k[i](K)
+            V = self.gaussian_list_k[i](V)
             Q_l.append(Q)
             K_l.append(K)
+            V_l.append(V)
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, l*len(self.filter_length), -1)
-        K_p = torch.cat(K_l, dim=0).reshape(b, l_k*len(self.filter_length), -1)
+        V_p = torch.cat(V_l, dim=0).reshape(b, h, l_k*len(self.filter_length), d_k)
+        K_p = torch.cat(K_l, dim=0).reshape(b, len(self.filter_length), l_k, -1)
         Q = torch.topk(Q_p, l, dim=1)[0]
-        K, index = torch.topk(K_p, self.log_l_k * self.factor, dim=1)
         Q = Q.reshape(b, h, l, d_k)
-        K = K.reshape(b, h, -1, d_k)
+        K = torch.mean(K_p, dim=1)
+        K = K.reshape(b, h, l_k, d_k)
 
-        index = index.reshape(b, h, -1, d_k)
-        index = torch.floor(index / len(self.filter_length))
-        index = index.to(torch.long)
+        K, index = torch.topk(K, self.log_l_k*self.factor, dim=-2)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
         if attn_mask is not None:
@@ -426,12 +429,11 @@ class KittyCat(nn.Module):
             attn_mask = attn_mask.to(self.device)
             scores.masked_fill_(attn_mask, -1e9)
 
-        V = V[torch.arange(b)[:, None, None, None],
-              torch.arange(h)[None, :, None, None],
-              index,
-              torch.arange(d_k)[None, None, None, :]]
-
         attn = torch.softmax(scores, -1)
+        V = V_p[torch.arange(b)[:, None, None, None],
+                torch.arange(h)[None, :, None, None],
+                index,
+                torch.arange(d_k)[None, None, None, :]]
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
 
