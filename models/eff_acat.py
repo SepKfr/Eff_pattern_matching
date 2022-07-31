@@ -384,10 +384,10 @@ class KittyCat(nn.Module):
         self.log_l_k = int(math.log2(l_k))
         self.filter_length = [3, 9, 15]
         self.gaussian_list_q = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=(0.5, 3.0)) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(0.2, 3.0)) for f in self.filter_length]
         ).to(device)
         self.gaussian_list_k = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=(0.5, 3.0)) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(0.2, 3.0)) for f in self.filter_length]
         ).to(device)
 
         self.factor = 1
@@ -443,10 +443,7 @@ class ACAT(nn.Module):
         super(ACAT, self).__init__()
         self.device = device
         self.d_k = d_k
-        self.log_l_k = int(math.log2(l_k))
-        interval = 2 if int(self.log_l_k / 5) < 2 else math.ceil(self.log_l_k / 5)
-        self.filter_length = [int((2 ** (self.log_l_k - i))) for i in range(0, self.log_l_k, interval)]
-        self.filter_length = self.filter_length[1:] if len(self.filter_length) > 2 else self.filter_length
+        self.filter_length = [1, 3, 6, 9]
         self.conv_list_q = nn.ModuleList(
             [nn.Conv1d(in_channels=d_k*h, out_channels=d_k*h,
                        kernel_size=f,
