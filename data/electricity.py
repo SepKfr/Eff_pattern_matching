@@ -200,7 +200,6 @@ class ElectricityFormatter(GenericDataFormatter):
                             pred = sliced_copy[col].to_numpy().reshape(-1, 1)
 
                         sliced_copy[col] = target_scaler.inverse_transform(pred)
-                        print(pred)
 
             df_list.append(sliced_copy)
         if len(df_list) == 0:
