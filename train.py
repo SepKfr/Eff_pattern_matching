@@ -55,7 +55,7 @@ config_file = dict()
 def train(args, model, train_en, train_de, train_y,
           test_en, test_de, test_y, epoch, e
           , val_loss, val_inner_loss, optimizer,
-          config, config_num, best_model, criterion, path):
+          best_model, criterion, path):
 
     stop = False
     total_loss = 0
@@ -269,7 +269,7 @@ def main():
                 train(args, model, train_en_p.to(device), train_de_p.to(device),
                       train_y_p.to(device), valid_en_p.to(device), valid_de_p.to(device),
                       valid_y_p.to(device), epoch, e, val_loss, val_inner_loss,
-                      optim, conf, i, best_model, criterion, path)
+                      optim, best_model, criterion, path)
 
             if stop:
                 break
