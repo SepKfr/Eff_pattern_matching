@@ -262,7 +262,6 @@ def main():
 
     valid_en_p, valid_de_p, valid_y_p, valid_id_p = batching(batch_size, valid_en,
                                                              valid_de, valid_y, valid_id)
-
     test_en_p, test_de_p, test_y_p, test_id_p = batching(batch_size, test_en,
                                                          test_de, test_y, test_id)
 
