@@ -60,7 +60,7 @@ class GenericDataFormatter(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def split_data(self, df):
+    def transform_data(self, df):
         """Performs the default train, validation and test splits."""
         raise NotImplementedError()
 

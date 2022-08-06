@@ -46,11 +46,10 @@ class WatershedFormatter(DataFormatter):
         ('pH', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('hour', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-        ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('categorical_id', DataTypes.CATEGORICAL, InputTypes.STATIC_INPUT),
     ]
 
-    def split_data(self, df, valid_boundary=1107, test_boundary=1607):
+    def transform_data(self, df):
         """Splits data_set frame into training-validation-test data_set frames.
         This also calibrates scaling object, and transforms data_set for each split.
         Args:
@@ -63,14 +62,9 @@ class WatershedFormatter(DataFormatter):
 
         print('Formatting train-valid-test splits.')
 
-        index = df['days_from_start']
-        train = df.loc[index < valid_boundary]
-        valid = df.loc[(index >= valid_boundary - 7) & (index < test_boundary)]
-        test = df.loc[index >= test_boundary - 7]
+        self.set_scalers(df)
 
-        self.set_scalers(train)
-
-        return (self.transform_inputs(data) for data in [train, valid, test])
+        return self.transform_inputs(df)
 
     def format_covariates(self, covariates):
         """Reverts any normalisation to give predictions in original scale.

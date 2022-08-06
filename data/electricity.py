@@ -40,7 +40,6 @@ class ElectricityFormatter(GenericDataFormatter):
       ('power_usage', DataTypes.REAL_VALUED, InputTypes.TARGET),
       ('hour', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
       ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-      ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
       ('categorical_id', DataTypes.CATEGORICAL, InputTypes.STATIC_INPUT),
     ]
 
@@ -55,7 +54,7 @@ class ElectricityFormatter(GenericDataFormatter):
         self._num_classes_per_cat_input = None
         self._time_steps = self.get_fixed_params()['total_time_steps']
 
-    def split_data(self, df, valid_boundary=1315, test_boundary=1339):
+    def transform_data(self, df):
         """Splits data_set frame into training-validation-test data_set frames.
         This also calibrates scaling object, and transforms data_set for each split.
         Args:
@@ -66,16 +65,11 @@ class ElectricityFormatter(GenericDataFormatter):
           Tuple of transformed (train, valid, test) data_set.
         """
 
-        print('Formatting train-valid-test splits.')
+        print('Formatting data.')
 
-        index = df['days_from_start']
-        train = df.loc[index < valid_boundary]
-        valid = df.loc[(index >= valid_boundary - 7) & (index < test_boundary)]
-        test = df.loc[index >= test_boundary - 7]
+        self.set_scalers(df)
 
-        self.set_scalers(train)
-
-        return (self.transform_inputs(data) for data in [train, valid, test])
+        return self.transform_inputs(df)
 
     def set_scalers(self, df):
 
@@ -83,7 +77,7 @@ class ElectricityFormatter(GenericDataFormatter):
         Args:
           df: Data to use to calibrate scalers.
         """
-        print('Setting scalers with training data_set...')
+        print('Setting scalers with data_set...')
 
         column_definitions = self.get_column_definition()
         id_column = utils.get_single_col_by_input_type(InputTypes.ID,
@@ -197,7 +191,17 @@ class ElectricityFormatter(GenericDataFormatter):
 
             for col in column_names:
                 if col not in {'identifier'}:
-                    sliced_copy[col] = target_scaler.inverse_transform(sliced_copy[col])
+                    try:
+                        sliced_copy[col] = target_scaler.inverse_transform(sliced_copy[col])
+                    except ValueError:
+                        if len(sliced_copy[col]) == 1:
+                            pred = sliced_copy[col].to_numpy().reshape(1, -1)
+                        else:
+                            pred = sliced_copy[col].to_numpy().reshape(-1, 1)
+
+                        sliced_copy[col] = target_scaler.inverse_transform(pred)
+                        print(pred)
+
             df_list.append(sliced_copy)
         if len(df_list) == 0:
             output = None
@@ -226,7 +230,7 @@ class ElectricityFormatter(GenericDataFormatter):
             'total_time_steps': 7 * 24 + 2 * self.pred_len,
             'num_encoder_steps': 7 * 24,
             'num_decoder_steps': self.pred_len,
-            'num_epochs': 50,
+            'num_epochs': 1,
         }
 
         return fixed_params

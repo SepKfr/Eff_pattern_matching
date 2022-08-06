@@ -176,7 +176,7 @@ def main():
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--DataParallel", type=bool, default=False)
-    parser.add_argument("--pred_len", type=int, default=24)
+    parser.add_argument("--pred_len", type=int, default=96)
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -188,13 +188,26 @@ def main():
         print("Running on GPU")
 
     config = ExperimentConfig(args.pred_len, args.exp_name)
-    formatter = config.make_data_formatter()
+    train_formatter = config.make_data_formatter()
+    valid_formatter = config.make_data_formatter()
+    test_formatter = config.make_data_formatter()
+    formatter = test_formatter
 
     data_csv_path = "{}.csv".format(args.exp_name)
 
     print("Loading & splitting data_set...")
     raw_data = pd.read_csv(data_csv_path)
-    train_data, valid, test = formatter.split_data(raw_data)
+
+    train_b = int(len(raw_data) * 0.8)
+    valid_len = int((len(raw_data) - train_b)/2)
+    train_data = raw_data.iloc[:train_b, :]
+    valid_data = raw_data.iloc[train_b:train_b+valid_len, :]
+    test_data = raw_data.iloc[-valid_len:, :]
+
+    train_data, valid_data, test_data = train_formatter.transform_data(train_data), \
+                                        valid_formatter.transform_data(valid_data), \
+                                        test_formatter.transform_data(test_data)
+
     train_max, valid_max = formatter.get_num_samples_for_calibration()
     params = formatter.get_experiment_params()
 
@@ -205,14 +218,14 @@ def main():
                                  torch.from_numpy(sample_data['outputs']).to(device), \
                                  sample_data['identifier']
 
-    sample_data = batch_sampled_data(valid, valid_max, params['total_time_steps'],
+    sample_data = batch_sampled_data(valid_data, valid_max, params['total_time_steps'],
                                      params['num_encoder_steps'], args.pred_len, params["column_definition"], args.seed)
     valid_en, valid_de, valid_y, valid_id = torch.from_numpy(sample_data['enc_inputs']).to(device), \
                                             torch.from_numpy(sample_data['dec_inputs']).to(device), \
                                  torch.from_numpy(sample_data['outputs']).to(device), \
                                  sample_data['identifier']
 
-    sample_data = batch_sampled_data(test, valid_max, params['total_time_steps'],
+    sample_data = batch_sampled_data(test_data, valid_max, params['total_time_steps'],
                                      params['num_encoder_steps'], args.pred_len, params["column_definition"], args.seed)
     test_en, test_de, test_y, test_id =torch.from_numpy(sample_data['enc_inputs']).to(device), \
                                             torch.from_numpy(sample_data['dec_inputs']).to(device), \
@@ -272,7 +285,7 @@ def main():
             model = nn.DataParallel(model)
         model.to(device)
 
-        optim = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 5000)
+        optim = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 4000)
 
         epoch_start = 0
 
