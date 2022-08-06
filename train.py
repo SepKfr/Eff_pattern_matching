@@ -55,53 +55,43 @@ config_file = dict()
 def train(args, model, train_en, train_de, train_y,
           test_en, test_de, test_y, epoch, e
           , val_loss, val_inner_loss, optimizer,
-          config, config_num, best_config, criterion, path):
+          config, config_num, best_model, criterion, path):
 
     stop = False
-    try:
-        total_loss = 0
-        model.train()
-        for batch_id in range(train_en.shape[0]):
-            output = model(train_en[batch_id], train_de[batch_id])
-            loss = criterion(output, train_y[batch_id])
-            total_loss += loss.item()
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step_and_update_lr()
+    total_loss = 0
+    model.train()
+    for batch_id in range(train_en.shape[0]):
+        output = model(train_en[batch_id], train_de[batch_id])
+        loss = criterion(output, train_y[batch_id])
+        total_loss += loss.item()
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step_and_update_lr()
 
-        print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
+    print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
-        model.eval()
-        test_loss = 0
-        for j in range(test_en.shape[0]):
-            outputs = model(test_en[j], test_de[j])
-            loss = criterion(test_y[j], outputs)
-            test_loss += loss.item()
+    model.eval()
+    test_loss = 0
+    for j in range(test_en.shape[0]):
+        outputs = model(test_en[j], test_de[j])
+        loss = criterion(test_y[j], outputs)
+        test_loss += loss.item()
 
-        if test_loss < val_inner_loss:
-            val_inner_loss = test_loss
-            if val_inner_loss < val_loss:
-                val_loss = val_inner_loss
-                best_config = config
-                torch.save({'model_state_dict': model.state_dict()}, os.path.join(path, "{}_{}".format(args.name, args.seed)))
+    print("val loss: {:.4f}".format(test_loss))
 
-            e = epoch
+    if test_loss < val_inner_loss:
+        val_inner_loss = test_loss
+        if val_inner_loss < val_loss:
+            val_loss = val_inner_loss
+            best_model = model
+            torch.save({'model_state_dict': model.state_dict()}, os.path.join(path, "{}_{}".format(args.name, args.seed)))
 
-        if epoch - e > 10:
-            stop = True
+        e = epoch
 
-        print("Average loss: {:.4f}".format(test_loss))
+    if epoch - e > 10:
+        stop = True
 
-    except KeyboardInterrupt:
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'config_num': config_num,
-            'best_config': best_config
-        }, os.path.join(path, "{}_continue".format(args.name)))
-        sys.exit(0)
-
-    return best_config, val_loss, val_inner_loss, stop, e
+    return best_model, val_loss, val_inner_loss, stop, e
 
 
 def create_config(hyper_parameters):
@@ -109,11 +99,7 @@ def create_config(hyper_parameters):
     return list(random.sample(set(prod), len(prod)))
 
 
-def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatter, path, device):
-
-    stack_size, n_heads, d_model, kernel = config
-    d_k = int(d_model / n_heads)
-    mae = nn.L1Loss()
+def evaluate(model, test_en, test_de, test_y, test_id, criterion, formatter, path, device):
 
     def extract_numerical_data(data):
         """Strips out forecast time and identifier columns."""
@@ -122,23 +108,8 @@ def evaluate(config, args, test_en, test_de, test_y, test_id, criterion, formatt
             if col not in {"forecast_time", "identifier"}
         ]]
 
-    model = Transformer(src_input_size=test_en.shape[3],
-                 tgt_input_size=test_de.shape[3],
-                 d_model=d_model,
-                 d_ff=d_model * 4,
-                 d_k=d_k, d_v=d_k, n_heads=n_heads,
-                 n_layers=stack_size, src_pad_index=0,
-                 tgt_pad_index=0, device=device,
-                 attn_type=args.attn_type,
-                 seed=args.seed,
-                 kernel=kernel).to(device)
-    if args.DataParallel:
-        model = nn.DataParallel(model)
-    checkpoint = torch.load(os.path.join(path, "{}_{}".format(args.name, args.seed)))
-    model.load_state_dict(checkpoint["model_state_dict"])
-
     model.eval()
-
+    mae = nn.L1Loss()
     predictions = torch.zeros(test_y.shape[0], test_y.shape[1], test_y.shape[2])
     targets_all = torch.zeros(test_y.shape[0], test_y.shape[1], test_y.shape[2])
 
@@ -176,7 +147,7 @@ def main():
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--DataParallel", type=bool, default=False)
-    parser.add_argument("--pred_len", type=int, default=96)
+    parser.add_argument("--pred_len", type=int, default=72)
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -252,7 +223,7 @@ def main():
     print('number of config: {}'.format(len(configs)))
 
     val_loss = 1e10
-    best_config = configs[0]
+    best_model = nn.Module()
     config_num = 0
 
     batch_size = model_params['minibatch_size'][0]
@@ -262,6 +233,7 @@ def main():
 
     valid_en_p, valid_de_p, valid_y_p, valid_id_p = batching(batch_size, valid_en,
                                                              valid_de, valid_y, valid_id)
+
     test_en_p, test_de_p, test_y_p, test_id_p = batching(batch_size, test_en,
                                                          test_de, test_y, test_id)
 
@@ -293,37 +265,28 @@ def main():
 
         for epoch in range(epoch_start, params['num_epochs'], 1):
 
-            best_config, val_loss, val_inner_loss, stop, e = \
+            best_model, val_loss, val_inner_loss, stop, e = \
                 train(args, model, train_en_p.to(device), train_de_p.to(device),
                       train_y_p.to(device), valid_en_p.to(device), valid_de_p.to(device),
                       valid_y_p.to(device), epoch, e, val_loss, val_inner_loss,
-                      optim, conf, i, best_config, criterion, path)
+                      optim, conf, i, best_model, criterion, path)
 
             if stop:
                 break
         print("val loss: {:.4f}".format(val_inner_loss))
         del model
 
-        print("best config so far: {}".format(best_config))
-
-    test_loss, mae_loss = evaluate(best_config, args, test_en_p.to(device),
+    test_loss, mae_loss = evaluate(best_model, test_en_p.to(device),
                                    test_de_p.to(device), test_y_p.to(device),
                                    test_id_p, criterion, formatter, path, device)
 
-    stack_size, heads, d_model, kernel = best_config
-    print("best_config: {}".format(best_config))
+    print("test loss {:.4f}".format(test_loss))
 
     erros["{}_{}".format(args.name, args.seed)] = list()
-    config_file["{}_{}".format(args.name, args.seed)] = list()
     erros["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(test_loss)))
     erros["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(mae_loss)))
-    config_file["{}_{}".format(args.name, args.seed)] = list()
-    config_file["{}_{}".format(args.name, args.seed)].append(heads)
-    config_file["{}_{}".format(args.name, args.seed)].append(d_model)
 
-    print("test error for best config {:.4f}".format(test_loss))
     error_path = "errors_{}_{}.json".format(args.exp_name, args.pred_len)
-    config_path = "configs_{}_{}.json".format(args.exp_name, args.pred_len)
 
     if os.path.exists(error_path):
         with open(error_path) as json_file:
@@ -338,20 +301,6 @@ def main():
     else:
         with open(error_path, "w") as json_file:
             json.dump(erros, json_file)
-
-    if os.path.exists(config_path):
-        with open(config_path) as json_file:
-            json_dat = json.load(json_file)
-            if json_dat.get("{}_{}".format(args.name, args.seed)) is None:
-                json_dat["{}_{}".format(args.name, args.seed)] = list()
-            json_dat["{}_{}".format(args.name, args.seed)].append(heads)
-            json_dat["{}_{}".format(args.name, args.seed)].append(d_model)
-
-        with open(config_path, "w") as json_file:
-            json.dump(json_dat, json_file)
-    else:
-        with open(config_path, "w") as json_file:
-            json.dump(config_file, json_file)
 
 
 if __name__ == '__main__':
