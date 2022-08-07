@@ -53,7 +53,7 @@ class ModelData:
         self.enc = enc.to(device)
         self.dec = dec.to(device)
         self.y_true = y_true.to(device)
-        self.y_id = y_id.to(device)
+        self.y_id = y_id
 
 
 def create_config(hyper_parameters):
