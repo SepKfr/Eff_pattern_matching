@@ -7,7 +7,6 @@ import argparse
 import json
 import os
 import itertools
-import sys
 import random
 import pandas as pd
 import math
@@ -48,50 +47,13 @@ class NoamOpt:
             param_group['lr'] = lr
 
 
-erros = dict()
-config_file = dict()
+class ModelData:
 
-
-def train(args, model, train_en, train_de, train_y,
-          test_en, test_de, test_y, epoch, e
-          , val_loss, val_inner_loss, optimizer,
-          best_model, criterion, path):
-
-    stop = False
-    total_loss = 0
-    model.train()
-    for batch_id in range(train_en.shape[0]):
-        output = model(train_en[batch_id], train_de[batch_id])
-        loss = criterion(output, train_y[batch_id])
-        total_loss += loss.item()
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step_and_update_lr()
-
-    print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
-
-    model.eval()
-    test_loss = 0
-    for j in range(test_en.shape[0]):
-        outputs = model(test_en[j], test_de[j])
-        loss = criterion(test_y[j], outputs)
-        test_loss += loss.item()
-
-    print("val loss: {:.4f}".format(test_loss))
-
-    if test_loss < val_inner_loss:
-        val_inner_loss = test_loss
-        if val_inner_loss < val_loss:
-            val_loss = val_inner_loss
-            best_model = model
-            torch.save({'model_state_dict': model.state_dict()}, os.path.join(path, "{}_{}".format(args.name, args.seed)))
-
-        e = epoch
-
-    if epoch - e > 10:
-        stop = True
-
-    return best_model, val_loss, val_inner_loss, stop, e
+    def __init__(self, enc, dec, y_true, y_id):
+        self.enc = enc
+        self.dec = dec
+        self.y_true = y_true
+        self.y_id = y_id
 
 
 def create_config(hyper_parameters):
@@ -99,43 +61,220 @@ def create_config(hyper_parameters):
     return list(random.sample(set(prod), len(prod)))
 
 
-def evaluate(model, test_en, test_de, test_y, test_id, criterion, formatter, path, device):
+class Train:
+    def __init__(self, data, args):
 
-    def extract_numerical_data(data):
-        """Strips out forecast time and identifier columns."""
-        return data[[
-            col for col in data.columns
-            if col not in {"forecast_time", "identifier"}
-        ]]
+        config = ExperimentConfig(args.pred_len, args.exp_name)
+        self.data = data
+        self.len_data = len(data)
+        self.train_formatter = config.make_data_formatter()
+        self.valid_formatter = config.make_data_formatter()
+        self.test_formatter = config.make_data_formatter()
+        self.formatter = self.test_formatter
+        self.params = self.formatter.get_experiment_params()
+        self.total_time_steps = self.params['total_time_steps']
+        self.num_encoder_steps = self.params['num_encoder_steps']
+        self.column_definition = self.params["column_definition"]
+        self.pred_len = args.pred_len
+        self.seed = args.seed
+        self.device = torch.device(args.cuda if torch.cuda.is_available() else "cpu")
+        self.model_path = "models_{}_{}".format(args.exp_name, args.pred_len)
+        self.model_params = self.formatter.get_default_model_params()
+        self.batch_size = self.model_params['minibatch_size'][0]
+        self.attn_type = args.attn_type
+        self.criterion = nn.MSELoss()
+        self.mae_loss = nn.L1Loss()
+        self.num_epochs = self.params['num_epochs']
+        self.name = args.name
+        self.erros = dict()
+        self.exp_name = args.exp_name
+        self.train, self.valid, self.test = self.split_data()
+        self.best_model = self.train_model()
 
-    model.eval()
-    mae = nn.L1Loss()
-    predictions = torch.zeros(test_y.shape[0], test_y.shape[1], test_y.shape[2])
-    targets_all = torch.zeros(test_y.shape[0], test_y.shape[1], test_y.shape[2])
+    def get_configs(self):
 
-    for j in range(test_en.shape[0]):
+        if self.attn_type == "conv_attn":
+            kernel = [1, 3, 6, 9]
+        else:
+            kernel = [1]
 
-        output = model(test_en[j], test_de[j])
-        output_map = inverse_output(output, test_y[j], test_id[j])
-        p = formatter.format_predictions(output_map["predictions"])
-        if p is not None:
-            forecast = torch.from_numpy(extract_numerical_data(p).to_numpy().astype('float32')).to(device)
+        hyper_param = list([self.model_params['stack_size'],
+                            [self.model_params['num_heads']],
+                            self.model_params['hidden_layer_size'],
+                            kernel])
+        configs = create_config(hyper_param)
+        return configs
 
-            predictions[j, :forecast.shape[0], :] = forecast
-            targets = torch.from_numpy(extract_numerical_data(
-                formatter.format_predictions(output_map["targets"])).to_numpy().astype('float32')).to(device)
+    def sample_data(self, max_samples, data):
 
-            targets_all[j, :targets.shape[0], :] = targets
+        sample_data = batch_sampled_data(data, max_samples, self.params['total_time_steps'],
+                               self.params['num_encoder_steps'], self.pred_len, self.params["column_definition"],
+                                         self.seed)
+        sample_data = ModelData(torch.from_numpy(sample_data['enc_inputs']).to(self.device),
+                                                torch.from_numpy(sample_data['dec_inputs']).to(self.device),
+                                                torch.from_numpy(sample_data['outputs']).to(self.device),
+                                                sample_data['identifier'])
+        return sample_data
 
-    test_loss = criterion(predictions.to(device), targets_all.to(device)).item()
-    normaliser = targets_all.to(device).abs().mean()
-    test_loss = math.sqrt(test_loss) / normaliser
+    def split_data(self):
 
-    mae_loss = mae(predictions.to(device), targets_all.to(device)).item()
-    normaliser = targets_all.to(device).abs().mean()
-    mae_loss = mae_loss / normaliser
+        train_b = int(self.len_data * 0.8)
+        valid_len = int((self.len_data - train_b) / 2)
+        train_data = self.data.iloc[:train_b, :]
+        valid_data = self.data.iloc[train_b:train_b + valid_len, :]
+        test_data = self.data.iloc[-valid_len:, :]
 
-    return test_loss, mae_loss
+        train_data, valid_data, test_data = self.train_formatter.transform_data(train_data), \
+                                            self.valid_formatter.transform_data(valid_data), \
+                                            self.test_formatter.transform_data(test_data)
+
+        train_max, valid_max = self.formatter.get_num_samples_for_calibration()
+
+        trn = self.sample_data(train_max, train_data)
+        valid = self.sample_data(valid_max, valid_data)
+        test = self.sample_data(valid_max, test_data)
+
+        trn_batching = batching(self.batch_size, trn.enc, trn.dec, trn.y_true, trn.y_id)
+        valid_batching = batching(self.batch_size, valid.enc, valid.dec, valid.y_true, valid.y_id)
+        test_batching = batching(self.batch_size, test.enc, test.dec, test.y_true, test.y_id)
+
+        trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3])
+        valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3])
+        test = ModelData(test_batching[0], test_batching[1], test_batching[2], test_batching[3])
+
+        return trn, valid, test
+
+    def train_model(self):
+
+        configs = self.get_configs()
+        print('number of config: {}'.format(len(configs)))
+
+        val_loss = 1e10
+        config_num = 0
+        src_input_size = self.train.enc.shape[3]
+        tgt_input_size = self.train.dec.shape[3]
+        n_batches_train = self.train.enc.shape[0]
+        n_batches_valid = self.valid.enc.shape[0]
+
+        if not os.path.exists(self.model_path):
+            os.makedirs(self.model_path)
+
+        for i, conf in enumerate(configs, config_num):
+            print('config {}: {}'.format(i + 1, conf))
+
+            stack_size, n_heads, d_model, kernel = conf
+            d_k = int(d_model / n_heads)
+
+            model = Transformer(src_input_size=src_input_size,
+                                tgt_input_size=tgt_input_size,
+                                d_model=d_model,
+                                d_ff=d_model * 4,
+                                d_k=d_k, d_v=d_k, n_heads=n_heads,
+                                n_layers=stack_size, src_pad_index=0,
+                                tgt_pad_index=0, device=self.device,
+                                attn_type=self.attn_type,
+                                seed=self.seed, kernel=kernel)
+            model.to(self.device)
+
+            optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 5000)
+
+            epoch_start = 0
+
+            val_inner_loss = 1e10
+            e = 0
+
+            for epoch in range(epoch_start, self.num_epochs, 1):
+
+                total_loss = 0
+                for batch_id in range(n_batches_train):
+                    output = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    loss = self.criterion(output, self.train.y_true[batch_id])
+                    total_loss += loss.item()
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step_and_update_lr()
+
+                print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
+
+                model.eval()
+                test_loss = 0
+                for j in range(n_batches_valid):
+                    outputs = model(self.valid.enc[j], self.valid.dec[j])
+                    loss = self.criterion(self.valid.y_true[j], outputs)
+                    test_loss += loss.item()
+
+                print("val loss: {:.4f}".format(test_loss))
+
+                if test_loss < val_inner_loss:
+                    val_inner_loss = test_loss
+                    if val_inner_loss < val_loss:
+                        val_loss = val_inner_loss
+                        torch.save({'model_state_dict': model.state_dict()},
+                                   os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
+
+                    e = epoch
+
+                if epoch - e > 10:
+                    break
+        return model
+
+    def evaluate(self):
+
+        def extract_numerical_data(data):
+            """Strips out forecast time and identifier columns."""
+            return data[[
+                col for col in data.columns
+                if col not in {"forecast_time", "identifier"}
+            ]]
+
+        self.best_model.eval()
+        predictions = torch.zeros(self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2])
+        targets_all = torch.zeros(self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2])
+        n_batches_test = self.test.enc.shape[0]
+
+        for j in range(n_batches_test):
+
+            output = self.best_model(self.test.enc[j], self.test.dec[j])
+            output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
+            p = self.formatter.format_predictions(output_map["predictions"])
+            if p is not None:
+                forecast = torch.from_numpy(extract_numerical_data(p).to_numpy().astype('float32')).to(self.device)
+
+                predictions[j, :forecast.shape[0], :] = forecast
+                targets = torch.from_numpy(extract_numerical_data(
+                    self.formatter.format_predictions(output_map["targets"])).to_numpy().astype('float32')).to(self.device)
+
+                targets_all[j, :targets.shape[0], :] = targets
+
+        test_loss = self.criterion(predictions.to(self.device), targets_all.to(self.device)).item()
+        normaliser = targets_all.to(self.device).abs().mean()
+        test_loss = math.sqrt(test_loss) / normaliser
+
+        mae_loss = self.mae_loss(predictions.to(self.device), targets_all.to(self.device)).item()
+        normaliser = targets_all.to(self.device).abs().mean()
+        mae_loss = mae_loss / normaliser
+
+        print("test loss {:.4f}".format(test_loss))
+
+        self.erros["{}_{}".format(self.name, self.seed)] = list()
+        self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(test_loss)))
+        self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(mae_loss)))
+
+        error_path = "errors_{}_{}.json".format(self.exp_name, self.pred_len)
+
+        if os.path.exists(error_path):
+            with open(error_path) as json_file:
+                json_dat = json.load(json_file)
+                if json_dat.get("{}_{}".format(self.name, self.seed)) is None:
+                    json_dat["{}_{}".format(self.name, self.seed)] = list()
+                json_dat["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(test_loss)))
+                json_dat["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(mae_loss)))
+
+            with open(error_path, "w") as json_file:
+                json.dump(json_dat, json_file)
+        else:
+            with open(error_path, "w") as json_file:
+                json.dump(self.erros, json_file)
 
 
 def main():
@@ -154,153 +293,10 @@ def main():
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    device = torch.device(args.cuda if torch.cuda.is_available() else "cpu")
-    if torch.cuda.is_available():
-        print("Running on GPU")
-
-    config = ExperimentConfig(args.pred_len, args.exp_name)
-    train_formatter = config.make_data_formatter()
-    valid_formatter = config.make_data_formatter()
-    test_formatter = config.make_data_formatter()
-    formatter = test_formatter
-
     data_csv_path = "{}.csv".format(args.exp_name)
-
-    print("Loading & splitting data_set...")
     raw_data = pd.read_csv(data_csv_path)
 
-    train_b = int(len(raw_data) * 0.8)
-    valid_len = int((len(raw_data) - train_b)/2)
-    train_data = raw_data.iloc[:train_b, :]
-    valid_data = raw_data.iloc[train_b:train_b+valid_len, :]
-    test_data = raw_data.iloc[-valid_len:, :]
-
-    train_data, valid_data, test_data = train_formatter.transform_data(train_data), \
-                                        valid_formatter.transform_data(valid_data), \
-                                        test_formatter.transform_data(test_data)
-
-    train_max, valid_max = formatter.get_num_samples_for_calibration()
-    params = formatter.get_experiment_params()
-
-    sample_data = batch_sampled_data(train_data, train_max, params['total_time_steps'],
-                       params['num_encoder_steps'], args.pred_len, params["column_definition"], args.seed)
-    train_en, train_de, train_y, train_id = torch.from_numpy(sample_data['enc_inputs']).to(device), \
-                                            torch.from_numpy(sample_data['dec_inputs']).to(device), \
-                                 torch.from_numpy(sample_data['outputs']).to(device), \
-                                 sample_data['identifier']
-
-    sample_data = batch_sampled_data(valid_data, valid_max, params['total_time_steps'],
-                                     params['num_encoder_steps'], args.pred_len, params["column_definition"], args.seed)
-    valid_en, valid_de, valid_y, valid_id = torch.from_numpy(sample_data['enc_inputs']).to(device), \
-                                            torch.from_numpy(sample_data['dec_inputs']).to(device), \
-                                 torch.from_numpy(sample_data['outputs']).to(device), \
-                                 sample_data['identifier']
-
-    sample_data = batch_sampled_data(test_data, valid_max, params['total_time_steps'],
-                                     params['num_encoder_steps'], args.pred_len, params["column_definition"], args.seed)
-    test_en, test_de, test_y, test_id =torch.from_numpy(sample_data['enc_inputs']).to(device), \
-                                            torch.from_numpy(sample_data['dec_inputs']).to(device), \
-                                 torch.from_numpy(sample_data['outputs']).to(device), \
-                                 sample_data['identifier']
-
-    model_params = formatter.get_default_model_params()
-
-    path = "models_{}_{}".format(args.exp_name, args.pred_len)
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-    criterion = nn.MSELoss()
-    if args.attn_type == "conv_attn":
-        kernel = [1, 3, 6, 9]
-    else:
-        kernel = [1]
-
-    hyper_param = list([model_params['stack_size'],
-                        [model_params['num_heads']],
-                        model_params['hidden_layer_size'],
-                        kernel])
-    configs = create_config(hyper_param)
-    print('number of config: {}'.format(len(configs)))
-
-    val_loss = 1e10
-    best_model = nn.Module()
-    config_num = 0
-
-    batch_size = model_params['minibatch_size'][0]
-
-    train_en_p, train_de_p, train_y_p, train_id_p = batching(batch_size, train_en,
-                                                             train_de, train_y, train_id)
-
-    valid_en_p, valid_de_p, valid_y_p, valid_id_p = batching(batch_size, valid_en,
-                                                             valid_de, valid_y, valid_id)
-
-    test_en_p, test_de_p, test_y_p, test_id_p = batching(batch_size, test_en,
-                                                         test_de, test_y, test_id)
-
-    for i, conf in enumerate(configs, config_num):
-        print('config {}: {}'.format(i+1, conf))
-
-        stack_size, n_heads, d_model, kernel = conf
-        d_k = int(d_model / n_heads)
-
-        model = Transformer(src_input_size=train_en_p.shape[3],
-                            tgt_input_size=train_de_p.shape[3],
-                            d_model=d_model,
-                            d_ff=d_model*4,
-                            d_k=d_k, d_v=d_k, n_heads=n_heads,
-                            n_layers=stack_size, src_pad_index=0,
-                            tgt_pad_index=0, device=device,
-                            attn_type=args.attn_type,
-                            seed=args.seed, kernel=kernel)
-        if args.DataParallel:
-            model = nn.DataParallel(model)
-        model.to(device)
-
-        optim = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 4000)
-
-        epoch_start = 0
-
-        val_inner_loss = 1e10
-        e = 0
-
-        for epoch in range(epoch_start, params['num_epochs'], 1):
-
-            best_model, val_loss, val_inner_loss, stop, e = \
-                train(args, model, train_en_p.to(device), train_de_p.to(device),
-                      train_y_p.to(device), valid_en_p.to(device), valid_de_p.to(device),
-                      valid_y_p.to(device), epoch, e, val_loss, val_inner_loss,
-                      optim, best_model, criterion, path)
-
-            if stop:
-                break
-        print("val loss: {:.4f}".format(val_inner_loss))
-        del model
-
-    test_loss, mae_loss = evaluate(best_model, test_en_p.to(device),
-                                   test_de_p.to(device), test_y_p.to(device),
-                                   test_id_p, criterion, formatter, path, device)
-
-    print("test loss {:.4f}".format(test_loss))
-
-    erros["{}_{}".format(args.name, args.seed)] = list()
-    erros["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(test_loss)))
-    erros["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(mae_loss)))
-
-    error_path = "errors_{}_{}.json".format(args.exp_name, args.pred_len)
-
-    if os.path.exists(error_path):
-        with open(error_path) as json_file:
-            json_dat = json.load(json_file)
-            if json_dat.get("{}_{}".format(args.name, args.seed)) is None:
-                json_dat["{}_{}".format(args.name, args.seed)] = list()
-            json_dat["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(test_loss)))
-            json_dat["{}_{}".format(args.name, args.seed)].append(float("{:.5f}".format(mae_loss)))
-
-        with open(error_path, "w") as json_file:
-            json.dump(json_dat, json_file)
-    else:
-        with open(error_path, "w") as json_file:
-            json.dump(erros, json_file)
+    Train(raw_data, args)
 
 
 if __name__ == '__main__':
