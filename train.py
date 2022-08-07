@@ -49,11 +49,11 @@ class NoamOpt:
 
 class ModelData:
 
-    def __init__(self, enc, dec, y_true, y_id):
-        self.enc = enc
-        self.dec = dec
-        self.y_true = y_true
-        self.y_id = y_id
+    def __init__(self, enc, dec, y_true, y_id, device):
+        self.enc = enc.to(device)
+        self.dec = dec.to(device)
+        self.y_true = y_true.to(device)
+        self.y_id = y_id.to(device)
 
 
 def create_config(hyper_parameters):
@@ -110,10 +110,10 @@ class Train:
         sample_data = batch_sampled_data(data, max_samples, self.params['total_time_steps'],
                                self.params['num_encoder_steps'], self.pred_len, self.params["column_definition"],
                                          self.seed)
-        sample_data = ModelData(torch.from_numpy(sample_data['enc_inputs']).to(self.device),
-                                                torch.from_numpy(sample_data['dec_inputs']).to(self.device),
-                                                torch.from_numpy(sample_data['outputs']).to(self.device),
-                                                sample_data['identifier'])
+        sample_data = ModelData(torch.from_numpy(sample_data['enc_inputs']),
+                                                 torch.from_numpy(sample_data['dec_inputs']),
+                                                 torch.from_numpy(sample_data['outputs']),
+                                                 sample_data['identifier'], self.device)
         return sample_data
 
     def split_data(self):
@@ -138,9 +138,9 @@ class Train:
         valid_batching = batching(self.batch_size, valid.enc, valid.dec, valid.y_true, valid.y_id)
         test_batching = batching(self.batch_size, test.enc, test.dec, test.y_true, test.y_id)
 
-        trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3])
-        valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3])
-        test = ModelData(test_batching[0], test_batching[1], test_batching[2], test_batching[3])
+        trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3], self.device)
+        valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3], self.device)
+        test = ModelData(test_batching[0], test_batching[1], test_batching[2], test_batching[3], self.device)
 
         return trn, valid, test
 
