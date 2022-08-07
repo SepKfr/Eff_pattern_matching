@@ -90,6 +90,7 @@ class Train:
         self.exp_name = args.exp_name
         self.train, self.valid, self.test = self.split_data()
         self.best_model = self.train_model()
+        self.evaluate()
 
     def get_configs(self):
 
