@@ -156,6 +156,7 @@ class Train:
         tgt_input_size = self.train.dec.shape[3]
         n_batches_train = self.train.enc.shape[0]
         n_batches_valid = self.valid.enc.shape[0]
+        best_model = nn.Module()
 
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
@@ -210,6 +211,7 @@ class Train:
                     val_inner_loss = test_loss
                     if val_inner_loss < val_loss:
                         val_loss = val_inner_loss
+                        best_model = model
                         torch.save({'model_state_dict': model.state_dict()},
                                    os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
 
@@ -217,7 +219,7 @@ class Train:
 
                 if epoch - e > 10:
                     break
-        return model
+        return best_model
 
     def evaluate(self):
 
