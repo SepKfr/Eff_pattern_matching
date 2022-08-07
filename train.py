@@ -62,9 +62,9 @@ def create_config(hyper_parameters):
 
 
 class Train:
-    def __init__(self, data, args):
+    def __init__(self, data, args, pred_len):
 
-        config = ExperimentConfig(args.pred_len, args.exp_name)
+        config = ExperimentConfig(pred_len, args.exp_name)
         self.data = data
         self.len_data = len(data)
         self.train_formatter = config.make_data_formatter()
@@ -75,10 +75,10 @@ class Train:
         self.total_time_steps = self.params['total_time_steps']
         self.num_encoder_steps = self.params['num_encoder_steps']
         self.column_definition = self.params["column_definition"]
-        self.pred_len = args.pred_len
+        self.pred_len = pred_len
         self.seed = args.seed
         self.device = torch.device(args.cuda if torch.cuda.is_available() else "cpu")
-        self.model_path = "models_{}_{}".format(args.exp_name, args.pred_len)
+        self.model_path = "models_{}_{}".format(args.exp_name, pred_len)
         self.model_params = self.formatter.get_default_model_params()
         self.batch_size = self.model_params['minibatch_size'][0]
         self.attn_type = args.attn_type
@@ -289,7 +289,6 @@ def main():
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--DataParallel", type=bool, default=False)
-    parser.add_argument("--pred_len", type=int, default=72)
     args = parser.parse_args()
 
     np.random.seed(args.seed)
@@ -299,7 +298,8 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    Train(raw_data, args)
+    for pred_len in [96, 72, 48, 24]:
+        Train(raw_data, args, pred_len)
 
 
 if __name__ == '__main__':
