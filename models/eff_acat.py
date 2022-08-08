@@ -424,7 +424,7 @@ class KittyCat(nn.Module):
         K_proj = K_proj.reshape(b, h, len(self.filter_length), l_k)
         K = torch.mean(K_proj, dim=2)
 
-        K, index = torch.topk(K, l_k, dim=-1)
+        K, index = torch.topk(K, self.log_l_k*self.factor, dim=-1)
         K = K.unsqueeze(-1)
         K = self.proj_k_back(K)
 
@@ -432,6 +432,7 @@ class KittyCat(nn.Module):
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
         if attn_mask is not None:
+            attn_mask = attn_mask[:, :, :, :self.log_l_k*self.factor]
             attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
             attn_mask = attn_mask.to(self.device)
             scores.masked_fill_(attn_mask, -1e9)
