@@ -362,6 +362,12 @@ class KittyCatFull(nn.Module):
 
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
+        if attn_mask is not None:
+
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
+
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
@@ -425,6 +431,12 @@ class KittyCat(nn.Module):
         index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
+        if attn_mask is not None:
+            attn_mask = attn_mask[:, :, :, :self.log_l_k*self.factor]
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
+
         scores_f = torch.zeros(b, h, l, l_k, device=self.device)
         scores_f[torch.arange(b)[:, None, None, None],
                  torch.arange(h)[None, :, None, None],
@@ -478,6 +490,13 @@ class ACAT(nn.Module):
         K_p = K_tmp[:, :, :, 0::m_f, :]
 
         scores = torch.einsum('bhpqd,bhpkd->bhpqk', Q_p, K_p) / np.sqrt(self.d_k)
+
+        if attn_mask is not None:
+            attn_mask = attn_mask[:, :, :, 0::m_f]
+            attn_mask = attn_mask.unsqueeze(2).repeat(1, 1, len_n_k, 1, 1)
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
 
         attn = torch.softmax(scores, -1)
         attn, _ = torch.max(attn, dim=2)
