@@ -362,12 +362,6 @@ class KittyCatFull(nn.Module):
 
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
-        if attn_mask is not None:
-
-            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
-            attn_mask = attn_mask.to(self.device)
-            scores.masked_fill_(attn_mask, -1e9)
-
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
@@ -384,10 +378,10 @@ class KittyCat(nn.Module):
         self.log_l_k = int(math.log2(l_k))
         self.filter_length = [3, 9, 15]
         self.gaussian_list_q = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=(0.2, 2.0)) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(0.5, 3.0)) for f in self.filter_length]
         ).to(device)
         self.gaussian_list_k = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=(0.2, 2.0)) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(0.5, 3.0)) for f in self.filter_length]
         ).to(device)
         self.proj_q = nn.Linear(self.d_k, 1).to(device)
         self.proj_k = nn.Linear(self.d_k, 1).to(device)
@@ -430,12 +424,6 @@ class KittyCat(nn.Module):
 
         index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
-
-        if attn_mask is not None:
-            attn_mask = attn_mask[:, :, :, :self.log_l_k*self.factor]
-            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
-            attn_mask = attn_mask.to(self.device)
-            scores.masked_fill_(attn_mask, -1e9)
 
         scores_f = torch.zeros(b, h, l, l_k, device=self.device)
         scores_f[torch.arange(b)[:, None, None, None],
@@ -490,13 +478,6 @@ class ACAT(nn.Module):
         K_p = K_tmp[:, :, :, 0::m_f, :]
 
         scores = torch.einsum('bhpqd,bhpkd->bhpqk', Q_p, K_p) / np.sqrt(self.d_k)
-
-        if attn_mask is not None:
-            attn_mask = attn_mask[:, :, :, 0::m_f]
-            attn_mask = attn_mask.unsqueeze(2).repeat(1, 1, len_n_k, 1, 1)
-            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
-            attn_mask = attn_mask.to(self.device)
-            scores.masked_fill_(attn_mask, -1e9)
 
         attn = torch.softmax(scores, -1)
         attn, _ = torch.max(attn, dim=2)
