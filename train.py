@@ -119,7 +119,7 @@ class Train:
 
     def split_data(self):
 
-        train_b = int(self.len_data * 0.8)
+        train_b = int(self.len_data * 0.6)
         valid_len = int((self.len_data - train_b) / 2)
         train_data = self.data.iloc[:train_b, :]
         valid_data = self.data.iloc[train_b:train_b + valid_len, :]
