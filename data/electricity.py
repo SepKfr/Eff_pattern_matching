@@ -226,8 +226,8 @@ class ElectricityFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 5 * 24 + 2 * self.pred_len,
-            'num_encoder_steps': 5 * 24,
+            'total_time_steps': 4 * 24 + 2 * self.pred_len,
+            'num_encoder_steps': 4 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
         }
@@ -238,7 +238,7 @@ class ElectricityFormatter(GenericDataFormatter):
         """Gets the default number of training and validation samples.
         Use to sub-sample the data_set for network calibration and a value of -1 uses
         all available samples.
-        Returns:
+        Retdurns:
           Tuple of (training samples, validation samples)
         """
         return 128000, 15360
