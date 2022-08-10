@@ -155,8 +155,8 @@ class TrafficFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 5 * 24 + 2 * self.pred_len,
-            'num_encoder_steps': 5 * 24,
+            'total_time_steps': 4 * 24 + 2 * self.pred_len,
+            'num_encoder_steps': 4 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,
