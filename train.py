@@ -67,10 +67,7 @@ class Train:
         config = ExperimentConfig(pred_len, args.exp_name)
         self.data = data
         self.len_data = len(data)
-        self.train_formatter = config.make_data_formatter()
-        self.valid_formatter = config.make_data_formatter()
-        self.test_formatter = config.make_data_formatter()
-        self.formatter = self.test_formatter
+        self.formatter = config.make_data_formatter()
         self.params = self.formatter.get_experiment_params()
         self.total_time_steps = self.params['total_time_steps']
         self.num_encoder_steps = self.params['num_encoder_steps']
@@ -119,25 +116,27 @@ class Train:
 
     def split_data(self):
 
-        train_b = int(self.len_data * 0.8)
-        valid_len = int((self.len_data - train_b) / 2)
-        train_data = self.data.iloc[:train_b, :]
-        valid_data = self.data.iloc[train_b:train_b + valid_len, :]
-        test_data = self.data.iloc[-valid_len:, :]
-
-        train_data, valid_data, test_data = self.train_formatter.transform_data(train_data), \
-                                            self.valid_formatter.transform_data(valid_data), \
-                                            self.test_formatter.transform_data(test_data)
+        data_trans = self.formatter.transform_data(self.data)
 
         train_max, valid_max = self.formatter.get_num_samples_for_calibration()
+        total_num = train_max + 2 * valid_max
+        train_b = int(total_num * 0.8)
+        valid_len = int((total_num - train_b) / 2)
 
-        trn = self.sample_data(train_max, train_data)
-        valid = self.sample_data(valid_max, valid_data)
-        test = self.sample_data(valid_max, test_data)
+        data_sample = self.sample_data(total_num, data_trans)
 
-        trn_batching = batching(self.batch_size, trn.enc, trn.dec, trn.y_true, trn.y_id)
-        valid_batching = batching(self.batch_size, valid.enc, valid.dec, valid.y_true, valid.y_id)
-        test_batching = batching(self.batch_size, test.enc, test.dec, test.y_true, test.y_id)
+        trn_batching = batching(self.batch_size, data_sample.enc[:train_b, :, :], data_sample.dec[:train_b, :, :],
+                                data_sample.y_true[:train_b, :, :], data_sample.y_id[:train_b, :, :])
+
+        valid_batching = batching(self.batch_size, data_sample.enc[train_b:train_b + valid_len, :, :],
+                                  data_sample.dec[train_b:train_b + valid_len, :, :],
+                                  data_sample.y_true[train_b:train_b + valid_len, :, :],
+                                  data_sample.y_id[train_b:train_b + valid_len, :, :])
+
+        test_batching = batching(self.batch_size, data_sample.enc[-valid_len:, :, :],
+                                 data_sample.dec[-valid_len:, :, :],
+                                 data_sample.y_true[-valid_len:, :, :],
+                                 data_sample.y_id[-valid_len:, :, :])
 
         trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3], self.device)
         valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3], self.device)
