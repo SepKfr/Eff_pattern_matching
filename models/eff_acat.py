@@ -368,7 +368,7 @@ class KittyCat(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [3, 9, 15]
+        self.filter_length = [1, 3, 6, 9]
         self.gaussian_list_q = nn.ModuleList([
             T.GaussianBlur(kernel_size=f, sigma=(0.5, 3.0)) for f in self.filter_length]
         ).to(device)
