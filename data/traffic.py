@@ -169,7 +169,7 @@ class TrafficFormatter(GenericDataFormatter):
         """Returns default optimised model parameters."""
 
         model_params = {
-            'hidden_layer_size': [16, 32],
+            'hidden_layer_size': [16, 32, 64],
             'minibatch_size': [256],
             'num_heads': 8,
             'stack_size': [1],
@@ -185,6 +185,6 @@ class TrafficFormatter(GenericDataFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 128000, 15360
+        return 64000, 6400
 
 
