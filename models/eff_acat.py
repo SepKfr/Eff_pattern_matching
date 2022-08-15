@@ -367,6 +367,7 @@ class KittyCat(nn.Module):
 
         self.device = device
         self.d_k = d_k
+        self.log_l_k = int(math.log2(l_k))
         self.filter_length = [1, 3, 7, 9]
         self.gaussian_list_q = nn.ModuleList([
             T.GaussianBlur(kernel_size=f, sigma=3) for f in self.filter_length]
@@ -376,6 +377,8 @@ class KittyCat(nn.Module):
         ).to(device)
         self.proj_q = nn.Linear(self.d_k, 1, bias=False).to(device)
         self.proj_k = nn.Linear(self.d_k, 1, bias=False).to(device)
+        self.proj_q_back = nn.Linear(1, self.d_k, bias=False).to(device)
+        self.proj_k_back = nn.Linear(1, self.d_k, bias=False).to(device)
 
         self.factor = 1
 
@@ -400,15 +403,16 @@ class KittyCat(nn.Module):
         K_proj = self.proj_k(K_p)
 
         Q = torch.topk(Q_proj, l, dim=2)[0]
+        Q = self.proj_q_back(Q)
 
         K_proj = K_proj.reshape(b, h, len(self.filter_length), l_k)
         K = torch.mean(K_proj, dim=2)
 
         K, index = torch.topk(K, l_k, dim=-1)
         K = K.unsqueeze(-1)
-        d_k = 1
+        K = self.proj_k_back(K)
 
-        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(d_k)
+        scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
