@@ -8,6 +8,9 @@ import torchvision
 import torchvision.transforms as T
 from reformer_pytorch import LSHSelfAttention
 
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
+
 
 def get_attn_subsequent_mask(seq):
     attn_shape = [seq.size(0), seq.size(1), seq.size(1)]
@@ -370,10 +373,10 @@ class KittyCat(nn.Module):
         self.log_l_k = int(math.log2(l_k))
         self.filter_length = [1, 3, 7, 9]
         self.gaussian_list_q = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=3) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(0.1, 2.0)) for f in self.filter_length]
         ).to(device)
         self.gaussian_list_k = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=3) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(0.1, 2.0)) for f in self.filter_length]
         ).to(device)
         self.proj_q = nn.Linear(self.d_k, 1, bias=False).to(device)
         self.proj_k = nn.Linear(self.d_k, 1, bias=False).to(device)
