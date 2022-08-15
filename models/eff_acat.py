@@ -373,15 +373,17 @@ class KittyCat(nn.Module):
         self.log_l_k = int(math.log2(l_k))
         self.filter_length = [1, 3, 7, 9]
         self.gaussian_list_q = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=(0.1, 2.0)) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(f-1)/6 if f > 1 else f) for f in self.filter_length]
         ).to(device)
         self.gaussian_list_k = nn.ModuleList([
-            T.GaussianBlur(kernel_size=f, sigma=(0.1, 2.0)) for f in self.filter_length]
+            T.GaussianBlur(kernel_size=f, sigma=(f-1)/6 if f > 1 else f) for f in self.filter_length]
         ).to(device)
         self.proj_q = nn.Linear(self.d_k, 1, bias=False).to(device)
         self.proj_k = nn.Linear(self.d_k, 1, bias=False).to(device)
         self.proj_q_back = nn.Linear(1, self.d_k, bias=False).to(device)
         self.proj_k_back = nn.Linear(1, self.d_k, bias=False).to(device)
+        self.norm = nn.BatchNorm1d(h * d_k).to(device)
+        self.activation = nn.ReLU().to(device)
 
         self.factor = 1
 
@@ -396,8 +398,8 @@ class KittyCat(nn.Module):
 
         for i in range(len(self.filter_length)):
 
-            Q_l.append(self.gaussian_list_q[i](Q))
-            K_l.append(self.gaussian_list_k[i](K))
+            Q_l.append(self.activation(self.norm(self.gaussian_list_q[i](Q))))
+            K_l.append(self.activation(self.norm(self.gaussian_list_k[i](K))))
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l*len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k*len(self.filter_length), -1)
