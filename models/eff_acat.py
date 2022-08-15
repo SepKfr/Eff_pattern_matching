@@ -396,11 +396,13 @@ class KittyCat(nn.Module):
 
         for i in range(len(self.filter_length)):
 
-            Q_l.append(self.gaussian_list_q[i](Q))
-            K_l.append(self.gaussian_list_k[i](K))
+            Q = self.gaussian_list_q[i](Q)
+            K = self.gaussian_list_k[i](K)
+            Q_l.append(Q)
+            K_l.append(K)
 
-        Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l*len(self.filter_length), -1)
-        K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k*len(self.filter_length), -1)
+        Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l * len(self.filter_length), -1)
+        K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k * len(self.filter_length), -1)
 
         Q_proj = self.proj_q(Q_p)
         K_proj = self.proj_k(K_p)
@@ -411,12 +413,25 @@ class KittyCat(nn.Module):
         K_proj = K_proj.reshape(b, h, len(self.filter_length), l_k)
         K = torch.mean(K_proj, dim=2)
 
-        K, index = torch.topk(K, l_k, dim=-1)
+        K, index = torch.topk(K, self.log_l_k * self.factor, dim=-1)
         K = K.unsqueeze(-1)
         K = self.proj_k_back(K)
 
+        index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
-        attn = torch.softmax(scores, -1)
+
+        if attn_mask is not None:
+            attn_mask = attn_mask[:, :, :, :self.log_l_k * self.factor]
+            attn_mask = torch.as_tensor(attn_mask, dtype=torch.bool)
+            attn_mask = attn_mask.to(self.device)
+            scores.masked_fill_(attn_mask, -1e9)
+
+        scores_f = torch.zeros(b, h, l, l_k, device=self.device)
+        scores_f[torch.arange(b)[:, None, None, None],
+                 torch.arange(h)[None, :, None, None],
+                 torch.arange(l)[None, None, :, None], index] = scores
+
+        attn = torch.softmax(scores_f, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
 
