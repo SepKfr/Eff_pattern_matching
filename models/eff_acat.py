@@ -382,8 +382,6 @@ class KittyCat(nn.Module):
         self.proj_k = nn.Linear(self.d_k, 1, bias=False).to(device)
         self.proj_q_back = nn.Linear(1, self.d_k, bias=False).to(device)
         self.proj_k_back = nn.Linear(1, self.d_k, bias=False).to(device)
-        self.norm = nn.BatchNorm1d(h * d_k).to(device)
-        self.activation = nn.ReLU().to(device)
 
         self.factor = 1
 
@@ -398,8 +396,8 @@ class KittyCat(nn.Module):
 
         for i in range(len(self.filter_length)):
 
-            Q_l.append(self.activation(self.norm(self.gaussian_list_q[i](Q))))
-            K_l.append(self.activation(self.norm(self.gaussian_list_k[i](K))))
+            Q_l.append(self.gaussian_list_q[i](Q))
+            K_l.append(self.gaussian_list_k[i](K))
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l*len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k*len(self.filter_length), -1)
