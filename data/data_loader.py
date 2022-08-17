@@ -386,10 +386,10 @@ def download_air_quality(args):
 def process_covid(args):
 
     df = pd.read_csv(os.path.join(
-        '~/Downloads', 'covid-data.csv'), index_col=0)
+        '~/Downloads', 'covid-data.csv'), dtype={'COUNTY_NAME': str})
     df.index = pd.to_datetime(df.REPORT_DATE)
     df.sort_index(inplace=True)
-
+    df = df.dropna()
     date = df.index
     earliest_time = df.index.min()
     df['day_of_week'] = date.dayofweek

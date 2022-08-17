@@ -120,7 +120,7 @@ class Train:
 
         train_max, valid_max = self.formatter.get_num_samples_for_calibration()
         total_num = train_max + 2 * valid_max
-        train_b = int(total_num * 0.8)
+        train_b = int(total_num * 0.6)
         valid_len = int((total_num - train_b) / 2)
 
         data_sample = self.sample_data(total_num, data_trans)
@@ -284,7 +284,7 @@ def main():
     parser = argparse.ArgumentParser(description="preprocess argument parser")
     parser.add_argument("--attn_type", type=str, default='KittyCatConv')
     parser.add_argument("--name", type=str, default="KittyCat")
-    parser.add_argument("--exp_name", type=str, default='electricity')
+    parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--DataParallel", type=bool, default=False)
