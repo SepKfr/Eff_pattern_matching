@@ -152,7 +152,7 @@ class CovidFormatter(GenericDataFormatter):
         """Returns default optimised model parameters."""
 
         model_params = {
-            'hidden_layer_size': [8],
+            'hidden_layer_size': [32],
             'minibatch_size': [512],
             'num_heads': 8,
             'stack_size': [1],
@@ -168,4 +168,4 @@ class CovidFormatter(GenericDataFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 64000, 6400
+        return 128000, 12800
