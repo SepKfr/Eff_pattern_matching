@@ -214,10 +214,6 @@ class Train:
                         torch.save({'model_state_dict': model.state_dict()},
                                    os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
 
-                    e = epoch
-
-                if epoch - e > 10:
-                    break
         return best_model
 
     def evaluate(self):
