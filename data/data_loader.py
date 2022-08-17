@@ -27,14 +27,15 @@ import gc
 import glob
 
 
-from data import air_quality, electricity, traffic, watershed, solar, ett, weather, camel
+from data import air_quality, electricity, traffic, watershed, solar, ett, weather, camel, covid
 
 
 class ExperimentConfig(object):
     default_experiments = ['electricity', 'traffic', 'air_quality', 'camel',
-                           'favorita', 'watershed', 'solar', 'ETTm2', 'weather']
+                           'favorita', 'watershed', 'solar', 'ETTm2', 'weather',
+                           'covid']
 
-    def __init__(self, pred_len, experiment='electricity', root_folder=None):
+    def __init__(self, pred_len, experiment='covid', root_folder=None):
 
         if experiment not in self.default_experiments:
             raise ValueError('Unrecognised experiment={}'.format(experiment))
@@ -66,7 +67,8 @@ class ExperimentConfig(object):
             'solar': 'solar.csv',
             'ETTm2': 'ETT.csv',
             'weather': 'weather.csv',
-            'camel': 'camel.csv'
+            'camel': 'camel.csv',
+            'covid': 'covid.csv'
         }
 
         return os.path.join(self.data_folder, csv_map[self.experiment])
@@ -85,7 +87,8 @@ class ExperimentConfig(object):
             'solar': solar.SolarFormatter,
             'ETTm2': ett.ETTFormatter,
             'weather': weather.weatherFormatter,
-            'camel': camel.camelFormatter
+            'camel': camel.camelFormatter,
+            'covid': covid.CovidFormatter
         }
 
         return data_formatter_class[self.experiment](self.pred_len)
@@ -376,6 +379,24 @@ def download_air_quality(args):
             date - earliest_time).days * 24
     output['days_from_start'] = (date - earliest_time).days
     output.to_csv("air_quality.csv")
+
+    print('Done.')
+
+
+def process_covid(args):
+
+    df = pd.read_csv(os.path.join(
+        '~/Downloads', 'covid-data.csv'), index_col=0)
+    df.index = pd.to_datetime(df.REPORT_DATE)
+    df.sort_index(inplace=True)
+
+    date = df.index
+    earliest_time = df.index.min()
+    df['day_of_week'] = date.dayofweek
+    df['id'] = df['COUNTY_NAME'] + '_' + df['PROVINCE_STATE_NAME']
+    df['categorical_id'] = df['id'].copy()
+    df['days_from_start'] = (date - earliest_time).days
+    df.to_csv("covid.csv")
 
     print('Done.')
 
@@ -819,7 +840,8 @@ def main(expt_name, force_download, output_folder):
         'solar': download_solar,
         'ETTm2': download_ett,
         'weather': download_weather,
-        'camel': download_camel
+        'camel': download_camel,
+        'covid': process_covid
     }
 
     if expt_name not in download_functions:
