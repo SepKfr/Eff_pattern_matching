@@ -10,9 +10,10 @@ class CovidFormatter(GenericDataFormatter):
 
     _column_definition = [
         ('id', DataTypes.REAL_VALUED, InputTypes.ID),
+        ('days_from_start', DataTypes.REAL_VALUED, InputTypes.TIME),
         ('PEOPLE_POSITIVE_NEW_CASES_COUNT', DataTypes.REAL_VALUED, InputTypes.TARGET),
         ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-        ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('days_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('categorical_id', DataTypes.CATEGORICAL, InputTypes.STATIC_INPUT),
     ]
 
