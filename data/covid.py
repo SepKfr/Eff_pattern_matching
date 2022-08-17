@@ -153,7 +153,7 @@ class CovidFormatter(GenericDataFormatter):
 
         model_params = {
             'hidden_layer_size': [32],
-            'minibatch_size': [512],
+            'minibatch_size': [1024],
             'num_heads': 8,
             'stack_size': [1],
             'context_lengths': [1, 3, 6, 9]
