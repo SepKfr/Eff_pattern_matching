@@ -45,12 +45,12 @@ def batching(batch_size, x_en, x_de, y_t, test_id):
     return X_en, X_de, Y_t, tst_id
 
 
-def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, num_decoder_steps, column_definition, seed):
+def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, pred_len, column_definition, seed):
     """Samples segments into a compatible format.
     Args:
       seed:
       column_definition:
-      num_decoder_steps:
+      pred_len:
       num_encoder_steps:
       time_steps:
       data: Sources data_set to sample and batch
@@ -107,7 +107,7 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, num_dec
     input_size = len(enc_input_cols)
     inputs = np.zeros((max_samples, time_steps, input_size))
     enc_inputs = np.zeros((max_samples, num_encoder_steps, input_size))
-    dec_inputs = np.zeros((max_samples, num_decoder_steps, input_size))
+    dec_inputs = np.zeros((max_samples, time_steps - num_encoder_steps - pred_len, input_size))
     outputs = np.zeros((max_samples, time_steps, 1))
     time = np.empty((max_samples, time_steps, 1), dtype=object)
     identifiers = np.empty((max_samples, time_steps, 1), dtype=object)
@@ -119,7 +119,7 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, num_dec
         sliced = split_data_map[identifier].iloc[start_idx -
                                                time_steps:start_idx]
         enc_inputs[i, :, :] = sliced[enc_input_cols].iloc[:num_encoder_steps]
-        dec_inputs[i, :, :] = sliced[enc_input_cols].iloc[num_encoder_steps:-num_decoder_steps]
+        dec_inputs[i, :, :] = sliced[enc_input_cols].iloc[num_encoder_steps:-pred_len]
         inputs[i, :, :] = sliced[enc_input_cols]
         outputs[i, :, :] = sliced[[target_col]]
         time[i, :, 0] = sliced[time_col]
@@ -129,7 +129,7 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, num_dec
         'inputs': inputs,
         'enc_inputs': enc_inputs,
         'dec_inputs': dec_inputs,
-        'outputs': outputs[:, -num_decoder_steps:, :],
+        'outputs': outputs[:, -pred_len:, :],
         'active_entries': np.ones_like(outputs[:, num_encoder_steps:, :]),
         'time': time,
         'identifier': identifiers

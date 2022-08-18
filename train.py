@@ -168,6 +168,7 @@ class Train:
 
             model = Transformer(src_input_size=src_input_size,
                                 tgt_input_size=tgt_input_size,
+                                pred_len=self.pred_len,
                                 d_model=d_model,
                                 d_ff=d_model * 4,
                                 d_k=d_k, d_v=d_k, n_heads=n_heads,
@@ -280,7 +281,7 @@ def main():
     parser = argparse.ArgumentParser(description="preprocess argument parser")
     parser.add_argument("--attn_type", type=str, default='KittyCatConv')
     parser.add_argument("--name", type=str, default="KittyCat")
-    parser.add_argument("--exp_name", type=str, default='electricity')
+    parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--DataParallel", type=bool, default=False)
