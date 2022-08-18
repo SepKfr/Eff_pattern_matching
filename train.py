@@ -120,7 +120,7 @@ class Train:
 
         train_max, valid_max = self.formatter.get_num_samples_for_calibration()
         total_num = train_max + 2 * valid_max
-        train_b = int(total_num * 0.6)
+        train_b = int(total_num * 0.8)
         valid_len = int((total_num - train_b) / 2)
 
         data_sample = self.sample_data(total_num, data_trans)
