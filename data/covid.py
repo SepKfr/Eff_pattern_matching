@@ -141,7 +141,7 @@ class CovidFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 4 * 24 + 2 * self.pred_len,
+            'total_time_steps': 7 * 24 + 2 * self.pred_len,
             'num_encoder_steps': 4 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
@@ -156,7 +156,7 @@ class CovidFormatter(GenericDataFormatter):
 
         model_params = {
             'hidden_layer_size': [8, 16, 32],
-            'minibatch_size': [2048],
+            'minibatch_size': [1024],
             'num_heads': 8,
             'stack_size': [1],
             'context_lengths': [1, 3, 6, 9]
