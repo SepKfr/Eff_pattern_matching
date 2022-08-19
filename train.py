@@ -288,6 +288,7 @@ def main():
     args = parser.parse_args()
 
     np.random.seed(args.seed)
+
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
