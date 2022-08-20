@@ -6,7 +6,6 @@ import torch.nn.functional as F
 import random
 import torchvision
 import torchvision.transforms as T
-from reformer_pytorch import LSHSelfAttention
 
 torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
@@ -334,7 +333,7 @@ class KittyCatConv(nn.Module):
         self.proj_q_back = nn.Linear(1, self.d_k, bias=False).to(device)
         self.proj_k_back = nn.Linear(1, self.d_k, bias=False).to(device)
 
-        self.norm = nn.BatchNorm1d(h*d_k).to(device)
+        self.norm_conv = nn.BatchNorm1d(h*d_k).to(device)
         self.activation = nn.ELU().to(device)
 
         for m in self.modules():
@@ -353,8 +352,8 @@ class KittyCatConv(nn.Module):
         K = K.reshape(b, h * d_k, l_k)
 
         for i in range(len(self.filter_length)):
-            Q = self.activation(self.norm(self.conv_list_q[i](Q)))
-            K = self.activation(self.norm(self.conv_list_k[i](K)))
+            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
+            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
             Q_l.append(Q)
             K_l.append(K)
 
@@ -374,13 +373,13 @@ class KittyCatConv(nn.Module):
         K = K.unsqueeze(-1)
         K = self.proj_k_back(K)
 
-        #index = index.unsqueeze(-2).repeat(1, 1, l, 1)
+        index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
-        '''scores_f = torch.zeros(b, h, l, l_k, device=self.device)
+        scores_f = torch.zeros(b, h, l, l_k, device=self.device)
         scores_f[torch.arange(b)[:, None, None, None],
                  torch.arange(h)[None, :, None, None],
-                 torch.arange(l)[None, None, :, None], index] = scores'''
+                 torch.arange(l)[None, None, :, None], index] = scores
 
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
@@ -508,38 +507,6 @@ class ACAT(nn.Module):
         return context, attn_f
 
 
-class ReformerLayer(nn.Module):
-    def __init__(self, d_model, n_heads, device, d_keys=None,
-                 d_values=None, causal=False, bucket_size=4, n_hashes=4):
-        super(ReformerLayer, self).__init__()
-        self.bucket_size = bucket_size
-        self.attn = LSHSelfAttention(
-            dim=d_model,
-            heads=n_heads,
-            bucket_size=bucket_size,
-            n_hashes=n_hashes,
-            causal=causal
-        ).to(device)
-
-    def fit_length(self, queries):
-        # inside reformer: assert N % (bucket_size * 2) == 0
-        B, N, C = queries.shape
-        if N % (self.bucket_size * 2) == 0:
-            return queries
-        else:
-            # fill the time series
-            fill_len = (self.bucket_size * 2) - (N % (self.bucket_size * 2))
-            return torch.cat([queries, torch.zeros([B, fill_len, C]).to(queries.device)], dim=1)
-
-    def forward(self, queries, keys, values, attn_mask):
-        # in Reformer: defalut queries=keys
-        B, H, N, D = queries.shape
-        queries = queries.reshape(B, N, H*D)
-        B, N, C = queries.shape
-        queries = self.attn(self.fit_length(queries))[:, :N, :]
-        return queries, None
-
-
 class MultiHeadAttention(nn.Module):
 
     def __init__(self, d_model, d_k, d_v, n_heads, device, attn_type, kernel):
@@ -590,9 +557,6 @@ class MultiHeadAttention(nn.Module):
         elif self.attn_type == "informer":
             mask_flag = True if attn_mask is not None else False
             context, attn = ProbAttention(mask_flag=mask_flag)(q_s, k_s, v_s, attn_mask)
-        elif self.attn_type == "reformer":
-            context, attn = ReformerLayer(d_model=self.d_k*self.n_heads, n_heads=self.n_heads, device=self.device)\
-                (q_s, k_s, v_s, attn_mask)
         else:
             context, attn = AutoCorrelation()(q_s.transpose(1, 2), k_s.transpose(1, 2), v_s.transpose(1, 2), attn_mask)
         context = context.transpose(1, 2).contiguous().view(batch_size, -1, self.n_heads * self.d_v)
