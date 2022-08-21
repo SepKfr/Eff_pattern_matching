@@ -25,6 +25,7 @@ import sys
 import random
 import gc
 import glob
+from tqdm import tqdm
 
 
 from data import air_quality, electricity, traffic, watershed, solar, ett, weather, camel, covid
@@ -384,6 +385,8 @@ def download_air_quality(args):
 
 def process_covid(args):
 
+    tqdm.pandas()
+
     df = pd.read_csv(os.path.join(
         '~/Downloads', 'covid-data.csv'), dtype={'COUNTY_NAME': str})
 
@@ -412,7 +415,6 @@ def process_covid(args):
     df_travel = df_travel[active_range_trip]
     date = df.index
 
-    df['Number of Trips'] = df_travel['Number of Trips'].values
     df['day_of_week'] = date.dayofweek
     df['id'] = df['COUNTY_FIPS_NUMBER']
     df['categorical_id'] = df['id'].copy()
@@ -420,7 +422,7 @@ def process_covid(args):
     f_df = pd.merge(df, df_travel[['Number of Trips',
                                    'Population Staying at Home',
                                    'Population Not Staying at Home', 'date']], on='date',
-                    how='inner')
+                    how='inner').progress_apply(lambda x: x)
     f_df.to_csv("covid.csv")
 
     print('Done.')
