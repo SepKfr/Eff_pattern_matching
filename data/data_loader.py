@@ -420,10 +420,8 @@ def process_covid(args):
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
     print('start merging')
-    f_df = pd.merge(df, df_travel[['Number of Trips',
-                                   'Population Staying at Home',
-                                   'Population Not Staying at Home', 'date']], on='date',
-                    how='inner').progress_apply(lambda x: x)
+    col_to_join = df_travel[['Number of Trips', 'Population Staying at Home', 'Population Not Staying at Home', 'date']]
+    f_df = col_to_join.join(df, how='left')
     f_df.to_csv("covid.csv")
 
     print('Done.')
