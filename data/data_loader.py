@@ -426,10 +426,9 @@ def process_covid(args):
         return functools.reduce(lambda df1, df2: df1.union(df2.select(df1.columns)), dfs)
 
     # Create PySpark SparkSession
-    spark = SparkSession.builder \
-    .master("local[1]") \
-    .appName("SparkByExamples.com") \
-    .getOrCreate()
+    spark = SparkSession.builder.appName("test").config(
+    "spark.driver.extraJavaOptions",
+    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED",).getOrCreate()
     df_s = spark.createDataFrame(df)
     df_trip_s = spark.createDataFrame(df_travel)
     df_f = unionAll([df_s, df_trip_s])
