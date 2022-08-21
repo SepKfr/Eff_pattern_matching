@@ -412,13 +412,14 @@ def process_covid(args):
     df_travel = df_travel[active_range_trip]
     date = df.index
 
+    df['Number of Trips'] = df_travel['Number of Trips'].values
     df['day_of_week'] = date.dayofweek
     df['id'] = df['COUNTY_FIPS_NUMBER']
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
     f_df = pd.merge(df, df_travel[['Number of Trips',
                                    'Population Staying at Home',
-                                   'Population Not Staying at Home', 'date']], on='date', how='outer')
+                                   'Population Not Staying at Home', 'date']], on='date', how='right')
     f_df.to_csv("covid.csv")
 
     print('Done.')
