@@ -419,7 +419,8 @@ def process_covid(args):
     df['days_from_start'] = (date - earliest_time).days
     f_df = pd.merge(df, df_travel[['Number of Trips',
                                    'Population Staying at Home',
-                                   'Population Not Staying at Home', 'date']], on='date', how='right')
+                                   'Population Not Staying at Home', 'date']], on='date',
+                    how='inner')
     f_df.to_csv("covid.csv")
 
     print('Done.')
