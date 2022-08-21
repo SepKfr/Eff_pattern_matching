@@ -25,7 +25,10 @@ import sys
 import random
 import gc
 import glob
-from tqdm import tqdm
+from tqdm.dask import TqdmCallback
+from dask.diagnostics import ProgressBar
+
+ProgressBar().register()
 
 
 from data import air_quality, electricity, traffic, watershed, solar, ett, weather, camel, covid
@@ -385,8 +388,6 @@ def download_air_quality(args):
 
 def process_covid(args):
 
-    tqdm.pandas()
-
     df = pd.read_csv(os.path.join(
         '~/Downloads', 'covid-data.csv'), dtype={'COUNTY_NAME': str})
 
@@ -421,7 +422,8 @@ def process_covid(args):
     df['days_from_start'] = (date - earliest_time).days
     print('start merging')
     col_to_join = df_travel[['Number of Trips', 'Population Staying at Home', 'Population Not Staying at Home', 'date']]
-    f_df = col_to_join.set_index('date').join(df.set_index(date), how='left')
+    with TqdmCallback(desc="compute"):
+        f_df = col_to_join.set_index('date').join(df.set_index(date), how='left').compute()
     f_df.to_csv("covid.csv")
 
     print('Done.')
