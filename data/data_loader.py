@@ -414,10 +414,11 @@ def process_covid(args):
     inds = df_travel.date.tolist()
     print("start merging")
     df = df[df['date'].isin(inds)]
+    print("end merging")
     date = df.index
 
     df['day_of_week'] = date.dayofweek
-    df['Number of Trips'] = df_travel['Number of Trips']
+    df['Number of Trips'] = df_travel['Number of Trips'].values
     df['id'] = df['COUNTY_FIPS_NUMBER']
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
