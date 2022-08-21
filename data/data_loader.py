@@ -426,9 +426,9 @@ def process_covid(args):
     df['id'] = df['COUNTY_FIPS_NUMBER']
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
-    ddf = from_pandas(df, npartitions=10)
-    ddf_trip = from_pandas(df_travel, npartitions=10)
-    join = dd.merge(ddf, ddf_trip, on='date')
+    ddf = from_pandas(df, npartitions=5)
+    ddf_trip = from_pandas(df_travel, npartitions=5)
+    join = dd.merge(ddf, ddf_trip)
     print("start merging:")
     with ProgressBar():
         df_f = join.compute()
