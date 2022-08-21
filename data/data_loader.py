@@ -35,7 +35,7 @@ class ExperimentConfig(object):
                            'favorita', 'watershed', 'solar', 'ETTm2', 'weather',
                            'covid']
 
-    def __init__(self, pred_len, experiment='covid', root_folder=None):
+    def __init__(self, experiment='covid', root_folder=None):
 
         if experiment not in self.default_experiments:
             raise ValueError('Unrecognised experiment={}'.format(experiment))
@@ -48,7 +48,6 @@ class ExperimentConfig(object):
         self.root_folder = root_folder
         self.experiment = experiment
         self.data_folder = os.path.join(root_folder, '', experiment)
-        self.pred_len = pred_len
 
         for relevant_directory in [
             self.root_folder, self.data_folder
@@ -387,16 +386,40 @@ def process_covid(args):
 
     df = pd.read_csv(os.path.join(
         '~/Downloads', 'covid-data.csv'), dtype={'COUNTY_NAME': str})
+
+    # adding travel data
+
+    df_travel = pd.read_csv(os.path.join('~/Downloads', 'Trips_by_Distance.csv'))
+
     df.index = pd.to_datetime(df.REPORT_DATE)
+    df['date'] = df.index
+    df_travel.index = pd.to_datetime(df_travel.Date)
+    df_travel['date'] = df_travel.index
+
     df.sort_index(inplace=True)
+    df_travel.sort_index(inplace=True)
+
     df = df.dropna()
-    date = df.index
+    df_travel = df_travel.dropna()
+
     earliest_time = df.index.min()
+    latest_time = df.index.max()
+
+    active_range = (df.index >= earliest_time) & (df.index <= latest_time)
+    active_range_trip = (df_travel.index >= earliest_time) & (df_travel.index <= latest_time)
+
+    df = df[active_range]
+    df_travel = df_travel[active_range_trip]
+    date = df.index
+
     df['day_of_week'] = date.dayofweek
-    df['id'] = df['COUNTY_NAME'] + '_' + df['PROVINCE_STATE_NAME']
+    df['id'] = df['COUNTY_FIPS_NUMBER']
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
-    df.to_csv("covid.csv")
+    f_df = pd.merge(df, df_travel[['Number of Trips',
+                                   'Population Staying at Home',
+                                   'Population Not Staying at Home', 'date']], on='date', how='outer')
+    f_df.to_csv("covid.csv")
 
     print('Done.')
 
