@@ -421,7 +421,7 @@ def process_covid(args):
     df['days_from_start'] = (date - earliest_time).days
     print('start merging')
     col_to_join = df_travel[['Number of Trips', 'Population Staying at Home', 'Population Not Staying at Home', 'date']]
-    f_df = col_to_join.join(df, how='left')
+    f_df = col_to_join.set_index('date').join(df.set_index(date), how='left')
     f_df.to_csv("covid.csv")
 
     print('Done.')
