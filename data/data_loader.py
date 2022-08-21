@@ -397,9 +397,7 @@ def process_covid(args):
     df_travel = pd.read_csv(os.path.join('~/Downloads', 'Trips_by_Distance.csv'))
 
     df.index = pd.to_datetime(df.REPORT_DATE)
-    df['date'] = df.index.astype(str)
     df_travel.index = pd.to_datetime(df_travel.Date)
-    df_travel['date'] = df_travel.index.astype(str)
 
     df.sort_index(inplace=True)
     df_travel.sort_index(inplace=True)
