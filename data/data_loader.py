@@ -428,7 +428,7 @@ def process_covid(args):
     df['days_from_start'] = (date - earliest_time).days
     ddf = from_pandas(df, npartitions=10)
     ddf_trip = from_pandas(df_travel, npartitions=10)
-    join = dd.merge(ddf, ddf_trip, how='inner', on='date')
+    join = dd.merge(ddf, ddf_trip, on='date')
     print("start merging:")
     with ProgressBar():
         df_f = join.compute()
