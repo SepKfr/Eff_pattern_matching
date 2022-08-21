@@ -393,9 +393,9 @@ def process_covid(args):
     df_travel = pd.read_csv(os.path.join('~/Downloads', 'Trips_by_Distance.csv'))
 
     df.index = pd.to_datetime(df.REPORT_DATE)
-    df['date'] = df.index
+    df['date'] = df.index.astype(str)
     df_travel.index = pd.to_datetime(df_travel.Date)
-    df_travel['date'] = df_travel.index
+    df_travel['date'] = df_travel.index.astype(str)
 
     df.sort_index(inplace=True)
     df_travel.sort_index(inplace=True)
@@ -411,16 +411,17 @@ def process_covid(args):
 
     df = df[active_range]
     df_travel = df_travel[active_range_trip]
+    inds = df_travel.date.tolist()
+    print("start merging")
+    df = df[df['date'] in inds]
     date = df.index
 
     df['day_of_week'] = date.dayofweek
+    df['Number of Trips'] = df_travel['Number of Trips']
     df['id'] = df['COUNTY_FIPS_NUMBER']
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
-    print('start merging')
-    col_to_join = df_travel[['Number of Trips', 'Population Staying at Home', 'Population Not Staying at Home', 'date']]
-    f_df = col_to_join.set_index('date').join(df.set_index(date), how='left')
-    f_df.to_csv("covid.csv")
+    df.to_csv("covid.csv")
 
     print('Done.')
 
