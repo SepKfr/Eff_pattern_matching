@@ -25,6 +25,8 @@ import sys
 import random
 import gc
 import glob
+from dask.dataframe import from_pandas
+import dask.dataframe as dd
 from tqdm import tqdm
 
 
@@ -420,11 +422,14 @@ def process_covid(args):
     date = df.index
 
     df['day_of_week'] = date.dayofweek
-    df['Number of Trips'] = df_travel['Number of Trips'].values
     df['id'] = df['COUNTY_FIPS_NUMBER']
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
-    df.to_csv("covid.csv")
+    ddf = from_pandas(df, npartitions=10)
+    ddf_trip = from_pandas(df_travel, npartitions=10)
+    join = dd.merge(ddf, ddf_trip, how='left', on='date')
+    df_f = join.compute()
+    df_f.to_csv("covid.csv")
 
     print('Done.')
 
