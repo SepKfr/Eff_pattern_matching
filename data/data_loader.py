@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import functools
 
 # Lint as: python3
 
@@ -28,6 +29,7 @@ import glob
 from dask.dataframe import from_pandas
 import dask.dataframe as dd
 from dask.diagnostics import ProgressBar
+from pyspark.sql import SparkSession
 from tqdm import tqdm
 
 
@@ -420,12 +422,17 @@ def process_covid(args):
     df['id'] = df['COUNTY_FIPS_NUMBER']
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
-    ddf = from_pandas(df, npartitions=5)
-    ddf_trip = from_pandas(df_travel, npartitions=5)
-    join = dd.merge(ddf, ddf_trip)
-    print("start merging:")
+
+    def unionAll(dfs):
+        return functools.reduce(lambda df1, df2: df1.union(df2.select(df1.columns)), dfs)
+
+    # Create PySpark SparkSession
+    spark = SparkSession.builder.getOrCreate()
+    df_s = spark.createDataFrame(df)
+    df_trip_s = spark.createDataFrame(df_travel)
     with ProgressBar():
-        df_f = join.compute()
+        df_f = unionAll([df_s, df_trip_s])
+
     df_f.to_csv("covid.csv")
 
     print('Done.')
