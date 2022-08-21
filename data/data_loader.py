@@ -411,10 +411,12 @@ def process_covid(args):
 
     df = df[active_range]
     df_travel = df_travel[active_range_trip]
-    inds = df_travel.date.tolist()
-    print("start merging")
-    df = df[df['date'].isin(inds)]
-    print("end merging")
+    inds_date = df_travel.date.tolist()
+    inds_fips = df_travel['County FIPS'].tolist()
+    df = df[df['date'].isin(inds_date) & df['COUNTY_FIPS_NUMBER'].isin(inds_fips)]
+    inds_date = df.date.tolist()
+    inds_fips = df['COUNTY_FIPS_NUMBER'].tolist()
+    df_travel = df_travel[df_travel['date'].isin(inds_date) & df_travel['County FIPS'].isin(inds_fips)]
     date = df.index
 
     df['day_of_week'] = date.dayofweek
