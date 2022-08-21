@@ -28,7 +28,6 @@ import gc
 import glob
 from dask.dataframe import from_pandas
 import dask.dataframe as dd
-from dask.diagnostics import ProgressBar
 from pyspark.sql import SparkSession
 from tqdm import tqdm
 
@@ -427,11 +426,13 @@ def process_covid(args):
         return functools.reduce(lambda df1, df2: df1.union(df2.select(df1.columns)), dfs)
 
     # Create PySpark SparkSession
-    spark = SparkSession.builder.getOrCreate()
+    spark = SparkSession.builder \
+    .master("local[1]") \
+    .appName("SparkByExamples.com") \
+    .getOrCreate()
     df_s = spark.createDataFrame(df)
     df_trip_s = spark.createDataFrame(df_travel)
-    with ProgressBar():
-        df_f = unionAll([df_s, df_trip_s])
+    df_f = unionAll([df_s, df_trip_s])
 
     df_f.to_csv("covid.csv")
 
