@@ -27,6 +27,7 @@ import gc
 import glob
 from dask.dataframe import from_pandas
 import dask.dataframe as dd
+from dask.diagnostics import ProgressBar
 from tqdm import tqdm
 
 
@@ -427,8 +428,10 @@ def process_covid(args):
     df['days_from_start'] = (date - earliest_time).days
     ddf = from_pandas(df, npartitions=10)
     ddf_trip = from_pandas(df_travel, npartitions=10)
-    join = dd.merge(ddf, ddf_trip, how='left', on='date')
-    df_f = join.compute()
+    join = dd.merge(ddf, ddf_trip, how='inner', on='date')
+    print("start merging:")
+    with ProgressBar():
+        df_f = join.compute()
     df_f.to_csv("covid.csv")
 
     print('Done.')
