@@ -26,9 +26,8 @@ import sys
 import random
 import gc
 import glob
-from dask.dataframe import from_pandas
-import dask.dataframe as dd
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import lit
 from tqdm import tqdm
 
 
@@ -427,8 +426,16 @@ def process_covid(args):
     spark = SparkSession.builder.appName("test").config(
     "spark.driver.extraJavaOptions",
     "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED",).getOrCreate()
+
     df_s = spark.createDataFrame(df)
     df_trip_s = spark.createDataFrame(df_travel)
+
+    for col in [col for col in df_trip_s.columns if col not in df_s.columns]:
+        df_s.withColumn(col, lit(None))
+
+    for col in [col for col in df_s.columns if col not in df_trip_s.columns]:
+        df_trip_s.withColumn(col, lit(None))
+
     df_f = unionAll([df_s, df_trip_s])
 
     df_f.to_csv("covid.csv")
