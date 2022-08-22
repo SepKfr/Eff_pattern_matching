@@ -419,8 +419,6 @@ def process_covid(args):
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
 
-    def unionAll(dfs):
-        return functools.reduce(lambda df1, df2: df1.union(df2.select(df1.columns)), dfs)
 
     # Create PySpark SparkSession
     spark = SparkSession.builder.appName("test").config(
@@ -436,7 +434,7 @@ def process_covid(args):
     for col in [col for col in df_s.columns if col not in df_trip_s.columns]:
         df_trip_s.withColumn(col, lit(None))
 
-    df_f = unionAll([df_s, df_trip_s])
+    df_f = df_s.unionByName(df_trip_s)
 
     df_f.to_csv("covid.csv")
 
