@@ -116,14 +116,14 @@ class Train:
 
     def split_data(self):
 
-        data_trans = self.formatter.transform_data(self.data)
+        data = self.formatter.transform_data(self.data)
 
         train_max, valid_max = self.formatter.get_num_samples_for_calibration()
         total_num = train_max + 2 * valid_max
         train_b = int(total_num * 0.8)
         valid_len = int((total_num - train_b) / 2)
 
-        data_sample = self.sample_data(total_num, data_trans)
+        data_sample = self.sample_data(total_num, data)
 
         trn_batching = batching(self.batch_size, data_sample.enc[:train_b, :, :], data_sample.dec[:train_b, :, :],
                                 data_sample.y_true[:train_b, :, :], data_sample.y_id[:train_b, :, :])
@@ -280,7 +280,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
     parser.add_argument("--attn_type", type=str, default='KittyCatConv')
-    parser.add_argument("--name", type=str, default="KittyCat")
+    parser.add_argument("--name", type=str, default="KittyCatConv")
     parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
@@ -294,6 +294,7 @@ def main():
 
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
+    raw_data = raw_data.dropna()
 
     for pred_len in [24, 48, 72, 92]:
         Train(raw_data, args, pred_len)

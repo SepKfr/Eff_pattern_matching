@@ -39,7 +39,7 @@ class ExperimentConfig(object):
                            'favorita', 'watershed', 'solar', 'ETTm2', 'weather',
                            'covid']
 
-    def __init__(self, experiment='covid', root_folder=None):
+    def __init__(self, pred_len, experiment='covid', root_folder=None):
 
         if experiment not in self.default_experiments:
             raise ValueError('Unrecognised experiment={}'.format(experiment))
@@ -52,6 +52,7 @@ class ExperimentConfig(object):
         self.root_folder = root_folder
         self.experiment = experiment
         self.data_folder = os.path.join(root_folder, '', experiment)
+        self.pred_len = pred_len
 
         for relevant_directory in [
             self.root_folder, self.data_folder
@@ -397,15 +398,18 @@ def process_covid(args):
 
     df.index = pd.to_datetime(df.REPORT_DATE)
     df_travel.index = pd.to_datetime(df_travel.Date)
+    df_travel["date"] = df_travel.index.astype(str)
 
     df.sort_index(inplace=True)
     df_travel.sort_index(inplace=True)
 
     df = df.dropna()
     df_travel = df_travel.dropna()
+    df_travel["County FIPS"] = df_travel["County FIPS"].astype(int)
+    df["COUNTY_FIPS_NUMBER"] = df["COUNTY_FIPS_NUMBER"].astype(int)
 
     earliest_time = df.index.min()
-    latest_time = df.index.max()
+    latest_time = df_travel.index.max()
 
     active_range = (df.index >= earliest_time) & (df.index <= latest_time)
     active_range_trip = (df_travel.index >= earliest_time) & (df_travel.index <= latest_time)
@@ -419,22 +423,17 @@ def process_covid(args):
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
 
+    ls_df = []
+    for fip, dff in df.groupby('COUNTY_FIPS_NUMBER'):
 
-    # Create PySpark SparkSession
-    spark = SparkSession.builder.appName("test").config(
-    "spark.driver.extraJavaOptions",
-    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED",).getOrCreate()
+        tmp = df_travel.loc[df_travel['County FIPS'] == fip]
+        dff.loc[0:len(tmp),'date'] = tmp["date"].values
+        dff.loc[0:len(tmp),"Number of Trips"] = tmp["Number of Trips"].values
+        dff.loc[0:len(tmp),"Population Staying at Home"] = tmp["Population Staying at Home"].values
+        dff.loc[0:len(tmp),"Population Not Staying at Home"] = tmp["Population Not Staying at Home"].values
+        ls_df.append(dff)
 
-    df_s = spark.createDataFrame(df)
-    df_trip_s = spark.createDataFrame(df_travel)
-
-    for col in [col for col in df_trip_s.columns if col not in df_s.columns]:
-        df_s.withColumn(col, lit(None))
-
-    for col in [col for col in df_s.columns if col not in df_trip_s.columns]:
-        df_trip_s.withColumn(col, lit(None))
-
-    df_f = df_s.unionByName(df_trip_s)
+    df_f = pd.concat(ls_df, axis=0)
 
     df_f.to_csv("covid.csv")
 
