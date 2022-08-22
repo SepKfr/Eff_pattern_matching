@@ -555,6 +555,7 @@ class MultiHeadAttention(nn.Module):
         elif self.attn_type == "KittyCatConv":
             context, trip_out, attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
                 Q=q_s, K=k_s, V=v_s, Q_trip=Q_trip, K_trip=K_trip, attn_mask=attn_mask)
+
         elif self.attn_type == "basic_attn":
             context, trip_out, attn = BasicAttn(d_k=self.d_k, device=self.device)(
             Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
@@ -706,7 +707,7 @@ class Decoder(nn.Module):
     def forward(self, dec_inputs, dec_trip_inputs, enc_outputs, enc_trip_outputs):
 
         dec_outputs = self.pos_emb(dec_inputs)
-        if "KittyCatConv" is self.attn_type:
+        if "KittyCat" in self.attn_type:
             dec_trip_outputs = self.pos_emb(dec_trip_inputs)
         else:
             dec_trip_outputs = None
@@ -778,7 +779,7 @@ class Transformer(nn.Module):
             enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
             dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
             enc_trip_inputs = self.enc_trip_embedding(enc_inputs[:, :, -3:])
-            dec_trip_inputs = self.enc_trip_embedding(dec_inputs[:, :, -3:])
+            dec_trip_inputs = self.dec_trip_embedding(dec_inputs[:, :, -3:])
         else:
             enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
             dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
