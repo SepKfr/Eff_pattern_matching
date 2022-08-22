@@ -166,6 +166,7 @@ class ElectricityFormatter(GenericDataFormatter):
 
         # Format categorical inputs
         for col in categorical_inputs:
+
             string_df = df[col].apply(str)
             output[col] = self._cat_scalers[col].transform(string_df)
 
