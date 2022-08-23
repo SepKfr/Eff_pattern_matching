@@ -10,6 +10,10 @@ import itertools
 import random
 import pandas as pd
 import math
+import optuna
+from optuna.samplers import TPESampler
+from optuna.trial import TrialState
+
 from data.data_loader import ExperimentConfig
 from Utils.base_train import batching, batch_sampled_data, inverse_output
 
@@ -86,7 +90,7 @@ class Train:
         self.erros = dict()
         self.exp_name = args.exp_name
         self.train, self.valid, self.test = self.split_data()
-        self.best_model = self.train_model()
+        self.run_optuna(args)
         self.evaluate()
 
     def get_configs(self):
@@ -102,6 +106,27 @@ class Train:
                             kernel])
         configs = create_config(hyper_param)
         return configs
+
+    def define_model(self, d_model, n_heads,
+                     stack_size, kernel, src_input_size,
+                     tgt_input_size):
+
+        stack_size, n_heads, d_model, kernel = stack_size, n_heads, d_model, kernel
+        d_k = int(d_model / n_heads)
+
+        model = Transformer(src_input_size=src_input_size,
+                            tgt_input_size=tgt_input_size,
+                            pred_len=self.pred_len,
+                            d_model=d_model,
+                            d_ff=d_model * 4,
+                            d_k=d_k, d_v=d_k, n_heads=n_heads,
+                            n_layers=stack_size, src_pad_index=0,
+                            tgt_pad_index=0, device=self.device,
+                            attn_type=self.attn_type,
+                            seed=self.seed, kernel=kernel)
+        model.to(self.device)
+
+        return model
 
     def sample_data(self, max_samples, data):
 
@@ -144,7 +169,32 @@ class Train:
 
         return trn, valid, test
 
-    def train_model(self):
+    def run_optuna(self, args):
+
+        study = optuna.create_study(study_name=args.name,
+                                    direction="minimize", pruner=optuna.pruners.HyperbandPruner(),
+                                    sampler=TPESampler(seed=1234))
+        study.optimize(self.objective, n_trials=args.n_trials)
+
+        pruned_trials = study.get_trials(deepcopy=False, states=[TrialState.PRUNED])
+        complete_trials = study.get_trials(deepcopy=False, states=[TrialState.COMPLETE])
+
+        print("Study statistics: ")
+        print("  Number of finished trials: ", len(study.trials))
+        print("  Number of pruned trials: ", len(pruned_trials))
+        print("  Number of complete trials: ", len(complete_trials))
+
+        print("Best trial:")
+        trial = study.best_trial
+
+        print("  Value: ", trial.value)
+
+        print("  Params: ")
+        for key, value in trial.params.items():
+            print("    {}: {}".format(key, value))
+
+
+    def objective(self, trial):
 
         configs = self.get_configs()
         print('number of config: {}'.format(len(configs)))
@@ -155,7 +205,6 @@ class Train:
         tgt_input_size = self.train.dec.shape[3]
         n_batches_train = self.train.enc.shape[0]
         n_batches_valid = self.valid.enc.shape[0]
-        best_model = nn.Module()
 
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
@@ -211,11 +260,11 @@ class Train:
                     val_inner_loss = test_loss
                     if val_inner_loss < val_loss:
                         val_loss = val_inner_loss
-                        best_model = model
+                        self.best_model = model
                         torch.save({'model_state_dict': model.state_dict()},
                                    os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
 
-        return best_model
+        return val_loss
 
     def evaluate(self):
 
@@ -284,6 +333,7 @@ def main():
     parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
+    parser.add_argument("--n_trials", type=int, default=50)
     parser.add_argument("--DataParallel", type=bool, default=False)
     args = parser.parse_args()
 

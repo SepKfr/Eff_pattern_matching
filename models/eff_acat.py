@@ -347,11 +347,13 @@ class KittyCatConv(nn.Module):
         Q_l = []
         K_l = []
         if self.trip:
+
             Q_trip = Q_trip.reshape(b, h * d_k, l)
             K_trip = K_trip.reshape(b, h * d_k, l_k)
             Q_trip = self.activation(self.norm_conv(self.weighted_mavg(Q_trip)).reshape(b, h, l, d_k))
             K_trip = self.activation(self.norm_conv(self.weighted_mavg(K_trip)).reshape(b, h, l_k, d_k))
         else:
+
             Q_trip = torch.zeros_like(Q, device=self.device)
             K_trip = torch.zeros_like(K, device=self.device)
 
