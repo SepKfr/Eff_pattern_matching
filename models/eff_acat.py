@@ -312,7 +312,7 @@ class LogTrans(nn.Module):
 
 
 class KittyCatConv(nn.Module):
-    def __init__(self, d_k, device, h, l_k):
+    def __init__(self, d_k, device, h, l_k, trip=True):
 
         super(KittyCatConv, self).__init__()
 
@@ -332,6 +332,7 @@ class KittyCatConv(nn.Module):
 
         self.norm_conv = nn.BatchNorm1d(h*d_k).to(device)
         self.activation = nn.ELU().to(device)
+        self.trip = trip
 
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
@@ -345,10 +346,14 @@ class KittyCatConv(nn.Module):
         l_k = K.shape[2]
         Q_l = []
         K_l = []
-        Q_trip = Q_trip.reshape(b, h * d_k, l)
-        K_trip = K_trip.reshape(b, h * d_k, l_k)
-        Q_trip = self.activation(self.norm_conv(self.weighted_mavg(Q_trip)).reshape(b, h, l, d_k))
-        K_trip = self.activation(self.norm_conv(self.weighted_mavg(K_trip)).reshape(b, h, l_k, d_k))
+        if self.trip:
+            Q_trip = Q_trip.reshape(b, h * d_k, l)
+            K_trip = K_trip.reshape(b, h * d_k, l_k)
+            Q_trip = self.activation(self.norm_conv(self.weighted_mavg(Q_trip)).reshape(b, h, l, d_k))
+            K_trip = self.activation(self.norm_conv(self.weighted_mavg(K_trip)).reshape(b, h, l_k, d_k))
+        else:
+            Q_trip = torch.zeros_like(Q, device=self.device)
+            K_trip = torch.zeros_like(K, device=self.device)
 
         Q = Q + Q_trip
         K = K + K_trip
@@ -550,8 +555,10 @@ class MultiHeadAttention(nn.Module):
         elif self.attn_type == "KittyCat":
             context, trip_out, attn = KittyCat(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
-        elif self.attn_type == "KittyCatConv":
-            context, trip_out, attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
+
+        elif "KittyCatConv" in self.attn_type:
+            trip = False if 'no-trip' in self.attn_type else True
+            context, trip_out, attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2], trip=trip)(
                 Q=q_s, K=k_s, V=v_s, Q_trip=Q_trip, K_trip=K_trip, attn_mask=attn_mask)
 
         elif self.attn_type == "basic_attn":
