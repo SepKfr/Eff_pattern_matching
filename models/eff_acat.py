@@ -319,7 +319,7 @@ class KittyCatConv(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [1, 3, 7, 9]
+        self.filter_length = [1, 3, 9]
         self.conv_list_q = nn.ModuleList([
             nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2)) for f in self.filter_length]
         ).to(device)
@@ -391,7 +391,7 @@ class KittyCatConv(nn.Module):
                  torch.arange(h)[None, :, None, None],
                  torch.arange(l)[None, None, :, None], index] = scores
 
-        attn = torch.softmax(scores, -1)
+        attn = torch.softmax(scores_f, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, Q_trip, attn
 
@@ -460,6 +460,8 @@ class KittyCat(nn.Module):
                  torch.arange(l)[None, None, :, None], index] = scores
 
         attn = torch.softmax(scores_f, -1)
+        print(attn.shape)
+        print(V.shape)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, None, attn
 
