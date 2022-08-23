@@ -87,6 +87,8 @@ class Train:
         self.mae_loss = nn.L1Loss()
         self.num_epochs = self.params['num_epochs']
         self.name = args.name
+        self.param_history = []
+        self.n_distinct_trial = 0
         self.erros = dict()
         self.exp_name = args.exp_name
         self.train, self.valid, self.test = self.split_data()
@@ -193,14 +195,12 @@ class Train:
         for key, value in trial.params.items():
             print("    {}: {}".format(key, value))
 
-
     def objective(self, trial):
 
         configs = self.get_configs()
         print('number of config: {}'.format(len(configs)))
 
         val_loss = 1e10
-        config_num = 0
         src_input_size = self.train.enc.shape[3]
         tgt_input_size = self.train.dec.shape[3]
         n_batches_train = self.train.enc.shape[0]
@@ -209,60 +209,66 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        for i, conf in enumerate(configs, config_num):
-            print('config {}: {}'.format(i + 1, conf))
+        d_model = trial.suggest_categorical("d_model", [16, 32, 64])
+        n_heads = self.model_params['num_heads']
+        stack_size = self.model_params['stack_size'][0]
+        kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
 
-            stack_size, n_heads, d_model, kernel = conf
-            d_k = int(d_model / n_heads)
+        if [d_model] in self.param_history or self.n_distinct_trial > 4:
+            raise optuna.exceptions.TrialPruned()
+        else:
+            self.n_distinct_trial += 1
+        self.param_history.append([d_model])
 
-            model = Transformer(src_input_size=src_input_size,
-                                tgt_input_size=tgt_input_size,
-                                pred_len=self.pred_len,
-                                d_model=d_model,
-                                d_ff=d_model * 4,
-                                d_k=d_k, d_v=d_k, n_heads=n_heads,
-                                n_layers=stack_size, src_pad_index=0,
-                                tgt_pad_index=0, device=self.device,
-                                attn_type=self.attn_type,
-                                seed=self.seed, kernel=kernel)
-            model.to(self.device)
+        d_k = int(d_model / n_heads)
 
-            optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 4000)
+        model = Transformer(src_input_size=src_input_size,
+                            tgt_input_size=tgt_input_size,
+                            pred_len=self.pred_len,
+                            d_model=d_model,
+                            d_ff=d_model * 4,
+                            d_k=d_k, d_v=d_k, n_heads=n_heads,
+                            n_layers=stack_size, src_pad_index=0,
+                            tgt_pad_index=0, device=self.device,
+                            attn_type=self.attn_type,
+                            seed=self.seed, kernel=kernel)
+        model.to(self.device)
 
-            epoch_start = 0
+        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 4000)
 
-            val_inner_loss = 1e10
-            e = 0
+        epoch_start = 0
 
-            for epoch in range(epoch_start, self.num_epochs, 1):
+        val_inner_loss = 1e10
 
-                total_loss = 0
-                for batch_id in range(n_batches_train):
-                    output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                    loss = self.criterion(output, self.train.y_true[batch_id])
-                    total_loss += loss.item()
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step_and_update_lr()
+        for epoch in range(epoch_start, self.num_epochs, 1):
 
-                print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
+            total_loss = 0
+            for batch_id in range(n_batches_train):
+                output = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                loss = self.criterion(output, self.train.y_true[batch_id])
+                total_loss += loss.item()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step_and_update_lr()
 
-                model.eval()
-                test_loss = 0
-                for j in range(n_batches_valid):
-                    outputs = model(self.valid.enc[j], self.valid.dec[j])
-                    loss = self.criterion(self.valid.y_true[j], outputs)
-                    test_loss += loss.item()
+            print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
-                print("val loss: {:.4f}".format(test_loss))
+            model.eval()
+            test_loss = 0
+            for j in range(n_batches_valid):
+                outputs = model(self.valid.enc[j], self.valid.dec[j])
+                loss = self.criterion(self.valid.y_true[j], outputs)
+                test_loss += loss.item()
 
-                if test_loss < val_inner_loss:
-                    val_inner_loss = test_loss
-                    if val_inner_loss < val_loss:
-                        val_loss = val_inner_loss
-                        self.best_model = model
-                        torch.save({'model_state_dict': model.state_dict()},
-                                   os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
+            print("val loss: {:.4f}".format(test_loss))
+
+            if test_loss < val_inner_loss:
+                val_inner_loss = test_loss
+                if val_inner_loss < val_loss:
+                    val_loss = val_inner_loss
+                    self.best_model = model
+                    torch.save({'model_state_dict': model.state_dict()},
+                               os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
 
         return val_loss
 
