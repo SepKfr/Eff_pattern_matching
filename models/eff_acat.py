@@ -281,7 +281,7 @@ class BasicAttn(nn.Module):
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhvd->bhqd', attn, V)
-        return context, None, attn
+        return context, attn
 
 
 class LogTrans(nn.Module):
@@ -557,7 +557,7 @@ class MultiHeadAttention(nn.Module):
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
 
         elif self.attn_type == "basic_attn":
-            context,  attn = BasicAttn(d_k=self.d_k, device=self.device)(
+            context, attn = BasicAttn(d_k=self.d_k, device=self.device)(
             Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "LogTrans":
             context,  attn = LogTrans(d_k=self.d_k, device=self.device)(
