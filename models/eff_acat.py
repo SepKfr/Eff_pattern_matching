@@ -762,8 +762,7 @@ class Transformer(nn.Module):
 
     def forward(self, enc_inputs, dec_inputs):
 
-        if "KittyCat" not in self.attn_type:
-
+        if "KittyCat" not in self.attn_type or "no-trip" in self.attn_type:
             enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
             dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
         else:
