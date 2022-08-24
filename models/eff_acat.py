@@ -356,6 +356,7 @@ class KittyCatConv(nn.Module):
             K_trip = K_trip.reshape(b, h * d_k, l_k)
             Q_trip = self.activation(self.norm_conv(self.weighted_mavg(Q_trip)).reshape(b, h, l, d_k))
             K_trip = self.activation(self.norm_conv(self.weighted_mavg(K_trip)).reshape(b, h, l_k, d_k))
+
         else:
 
             Q_trip = torch.zeros_like(Q, device=self.device)
@@ -769,13 +770,13 @@ class Transformer(nn.Module):
             device=device,
             attn_type=attn_type, kernel=kernel)
 
-        src_input_size = src_input_size - 3
-        tgt_input_size = tgt_input_size - 3
+        src_input_size = src_input_size - 1
+        tgt_input_size = tgt_input_size - 1
 
         if "KittyCat" in self.attn_type:
 
-            self.enc_trip_embedding = nn.Linear(3, d_model)
-            self.dec_trip_embedding = nn.Linear(3, d_model)
+            self.enc_trip_embedding = nn.Linear(1, d_model)
+            self.dec_trip_embedding = nn.Linear(1, d_model)
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)
@@ -787,13 +788,13 @@ class Transformer(nn.Module):
 
         if "KittyCat" in self.attn_type:
 
-            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
-            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
-            enc_trip_inputs = self.enc_trip_embedding(enc_inputs[:, :, -3:])
-            dec_trip_inputs = self.dec_trip_embedding(dec_inputs[:, :, -3:])
+            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-1])
+            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-1])
+            enc_trip_inputs = self.enc_trip_embedding(enc_inputs[:, :, -1:])
+            dec_trip_inputs = self.dec_trip_embedding(dec_inputs[:, :, -1:])
         else:
-            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
-            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
+            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-1])
+            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-1])
             enc_trip_inputs = None
             dec_trip_inputs = None
 
