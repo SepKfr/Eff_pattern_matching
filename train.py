@@ -91,6 +91,7 @@ class Train:
         self.n_distinct_trial = 0
         self.erros = dict()
         self.exp_name = args.exp_name
+        self.best_model = nn.Module()
         self.train, self.valid, self.test = self.split_data()
         self.run_optuna(args)
         self.evaluate()
@@ -214,11 +215,11 @@ class Train:
         stack_size = self.model_params['stack_size'][0]
         kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
 
-        if [d_model] in self.param_history or self.n_distinct_trial > 4:
+        if d_model in self.param_history or self.n_distinct_trial > 4:
             raise optuna.exceptions.TrialPruned()
         else:
             self.n_distinct_trial += 1
-        self.param_history.append([d_model])
+        self.param_history.append(d_model)
 
         d_k = int(d_model / n_heads)
 
@@ -292,11 +293,12 @@ class Train:
             output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
-                forecast = torch.from_numpy(extract_numerical_data(p).to_numpy().astype('float32')).to(self.device)
+                forecast = torch.from_numpy(extract_numerical_data(p).to_numpy().astype('int')).to(self.device)
 
                 predictions[j, :forecast.shape[0], :] = forecast
+
                 targets = torch.from_numpy(extract_numerical_data(
-                    self.formatter.format_predictions(output_map["targets"])).to_numpy().astype('float32')).to(self.device)
+                    self.formatter.format_predictions(output_map["targets"])).to_numpy().astype('int')).to(self.device)
 
                 targets_all[j, :targets.shape[0], :] = targets
 
