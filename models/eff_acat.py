@@ -751,8 +751,8 @@ class Transformer(nn.Module):
 
         if "KittyCat" not in self.attn_type:
 
-            src_input_size = src_input_size - 1
-            tgt_input_size = tgt_input_size - 1
+            src_input_size = src_input_size - 3
+            tgt_input_size = tgt_input_size - 3
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)
@@ -764,8 +764,8 @@ class Transformer(nn.Module):
 
         if "KittyCat" not in self.attn_type:
 
-            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-1])
-            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-1])
+            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
+            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
         else:
             enc_inputs = self.enc_embedding(enc_inputs)
             dec_inputs = self.dec_embedding(dec_inputs)
