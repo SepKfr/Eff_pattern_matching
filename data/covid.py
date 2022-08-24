@@ -30,7 +30,7 @@ class CovidFormatter(GenericDataFormatter):
             'total_time_steps': 4 * 24 + 2 * self.pred_len,
             'num_encoder_steps': 4 * 24,
             'num_decoder_steps': self.pred_len,
-            'num_epochs': 50,
+            'num_epochs': 1,
             'early_stopping_patience': 5,
             'multiprocessing_workers': 5
         }
@@ -57,4 +57,4 @@ class CovidFormatter(GenericDataFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 64000, 6400
+        return 1024, 1024
