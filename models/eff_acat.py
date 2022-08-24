@@ -149,9 +149,9 @@ class AutoCorrelation(nn.Module):
             V = self.time_delay_agg_inference(values.permute(0, 2, 3, 1).contiguous(), corr).permute(0, 3, 1, 2)
 
         if self.output_attention:
-            return (V.contiguous(), None, corr.permute(0, 3, 1, 2))
+            return (V.contiguous(), corr.permute(0, 3, 1, 2))
         else:
-            return (V.contiguous(), None, None)
+            return (V.contiguous(), None)
 
 
 class ProbAttention(nn.Module):
@@ -235,7 +235,7 @@ class ProbAttention(nn.Module):
         # update the context with selected top_k queries
         context, attn = self._update_context(context, values, scores_top, index, L_Q, attn_mask)
 
-        return context, None, attn
+        return context, attn
 
 
 class ConvAttn(nn.Module):
@@ -265,7 +265,7 @@ class ConvAttn(nn.Module):
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhvd->bhqd', attn, V)
-        return context, None, attn
+        return context, attn
 
 
 class BasicAttn(nn.Module):
@@ -344,27 +344,16 @@ class KittyCatConv(nn.Module):
 
         self.factor = 1
 
-    def forward(self, Q, K, V, Q_trip, K_trip, attn_mask):
+    def forward(self, Q, K, V, attn_mask):
 
         b, h, l, d_k = Q.shape
         l_k = K.shape[2]
         Q_l = []
         K_l = []
-        if self.trip:
 
-            Q_trip = Q_trip.reshape(b, h * d_k, l)
-            K_trip = K_trip.reshape(b, h * d_k, l_k)
-            Q_trip = self.activation(self.norm_conv(self.weighted_mavg(Q_trip)).reshape(b, h, l, d_k))
-            K_trip = self.activation(self.norm_conv(self.weighted_mavg(K_trip)).reshape(b, h, l_k, d_k))
-
-        else:
-
-            Q_trip = torch.zeros_like(Q, device=self.device)
-            K_trip = torch.zeros_like(K, device=self.device)
-
-        Q = Q + Q_trip
-        K = K + K_trip
-        V = V + K_trip
+        Q = Q
+        K = K
+        V = V
 
         Q = Q.reshape(b, h * d_k, l)
         K = K.reshape(b, h * d_k, l_k)
@@ -401,7 +390,7 @@ class KittyCatConv(nn.Module):
 
         attn = torch.softmax(scores_f, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
-        return context, Q_trip, attn
+        return context, attn
 
 
 class KittyCat(nn.Module):
@@ -524,7 +513,7 @@ class ACAT(nn.Module):
         attn_f[:, :, :, 0::m_f] = attn
         attn_f = torch.softmax(attn_f, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn_f, V)
-        return context, None, attn_f
+        return context, attn_f
 
 
 class MultiHeadAttention(nn.Module):
@@ -547,7 +536,7 @@ class MultiHeadAttention(nn.Module):
         self.attn_type = attn_type
         self.kernel = kernel
 
-    def forward(self, Q, Q_trip, K, K_trip, attn_mask):
+    def forward(self, Q, K, V, attn_mask):
 
         batch_size = Q.shape[0]
         q_s = self.WQ(Q).view(batch_size, -1, self.n_heads, self.d_k).transpose(1, 2)
@@ -557,34 +546,33 @@ class MultiHeadAttention(nn.Module):
         if attn_mask is not None:
             attn_mask = attn_mask.unsqueeze(1).repeat(1, self.n_heads, 1, 1)
         if self.attn_type == "ACAT":
-            context, trip_out, attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
+            context,  attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "KittyCat":
-            context, trip_out, attn = KittyCat(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
+            context,  attn = KittyCat(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
 
         elif "KittyCatConv" in self.attn_type:
-            trip = False if 'no-trip' in self.attn_type else True
-            context, trip_out, attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2], trip=trip)(
-                Q=q_s, K=k_s, V=v_s, Q_trip=Q_trip, K_trip=K_trip, attn_mask=attn_mask)
+            context,  attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
+                Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
 
         elif self.attn_type == "basic_attn":
-            context, trip_out, attn = BasicAttn(d_k=self.d_k, device=self.device)(
+            context,  attn = BasicAttn(d_k=self.d_k, device=self.device)(
             Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "LogTrans":
-            context, trip_out, attn = LogTrans(d_k=self.d_k, device=self.device)(
+            context,  attn = LogTrans(d_k=self.d_k, device=self.device)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "conv_attn":
-            context, trip_out, attn = ConvAttn(d_k=self.d_k, device=self.device, kernel=self.kernel, h=self.n_heads)(
+            context,  attn = ConvAttn(d_k=self.d_k, device=self.device, kernel=self.kernel, h=self.n_heads)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "informer":
             mask_flag = True if attn_mask is not None else False
-            context, trip_out, attn = ProbAttention(mask_flag=mask_flag)(q_s, k_s, v_s, attn_mask)
+            context,  attn = ProbAttention(mask_flag=mask_flag)(q_s, k_s, v_s, attn_mask)
         else:
-            context, trip_out, attn = AutoCorrelation()(q_s.transpose(1, 2), k_s.transpose(1, 2), v_s.transpose(1, 2), attn_mask)
+            context, attn = AutoCorrelation()(q_s.transpose(1, 2), k_s.transpose(1, 2), v_s.transpose(1, 2), attn_mask)
         context = context.transpose(1, 2).contiguous().view(batch_size, -1, self.n_heads * self.d_v)
         output = self.fc(context)
-        return output, trip_out, attn
+        return output, attn
 
 
 class PoswiseFeedForwardNet(nn.Module):
@@ -612,13 +600,13 @@ class EncoderLayer(nn.Module):
             d_model=d_model, d_ff=d_ff)
         self.layer_norm = nn.LayerNorm(d_model, elementwise_affine=False)
 
-    def forward(self, enc_inputs, enc_trip_inputs, enc_self_attn_mask=None):
+    def forward(self, enc_inputs, enc_self_attn_mask=None):
 
-        out, trip_out, attn = self.enc_self_attn(enc_inputs, enc_trip_inputs, enc_inputs, enc_trip_inputs,  attn_mask=enc_self_attn_mask)
+        out, attn = self.enc_self_attn(enc_inputs, enc_inputs, enc_inputs, attn_mask=enc_self_attn_mask)
         out = self.layer_norm(out + enc_inputs)
         out_2 = self.pos_ffn(out)
         out_2 = self.layer_norm(out_2 + out)
-        return out_2, trip_out, attn
+        return out_2, attn
 
 
 class Encoder(nn.Module):
@@ -644,24 +632,20 @@ class Encoder(nn.Module):
             self.layers.append(encoder_layer)
         self.layers = nn.ModuleList(self.layers)
 
-    def forward(self, enc_input, enc_trip_inputs):
+    def forward(self, enc_input):
 
         enc_outputs = self.pos_emb(enc_input)
-        if "KittyCat" in self.attn_type:
-            enc_trip_outputs = self.pos_emb(enc_trip_inputs)
-        else:
-            enc_trip_outputs = None
 
         enc_self_attn_mask = None
 
         enc_self_attns = []
         for layer in self.layers:
-            enc_outputs, enc_trip_outputs, enc_self_attn = layer(enc_outputs, enc_trip_outputs, enc_self_attn_mask)
+            enc_outputs, enc_self_attn = layer(enc_outputs, enc_self_attn_mask)
             enc_self_attns.append(enc_self_attn)
 
         '''enc_self_attns = torch.stack(enc_self_attns)
         enc_self_attns = enc_self_attns.permute([1, 0, 2, 3, 4])'''
-        return enc_outputs, enc_trip_outputs, enc_self_attns
+        return enc_outputs, enc_self_attns
 
 
 class DecoderLayer(nn.Module):
@@ -681,11 +665,11 @@ class DecoderLayer(nn.Module):
             d_model=d_model, d_ff=d_ff)
         self.layer_norm = nn.LayerNorm(d_model, elementwise_affine=False)
 
-    def forward(self, dec_inputs, dec_trip_inputs, enc_outputs, enc_trip_outputs, dec_self_attn_mask=None, dec_enc_attn_mask=None):
+    def forward(self, dec_inputs, enc_outputs, dec_self_attn_mask=None, dec_enc_attn_mask=None):
 
-        out, trip_out, dec_self_attn = self.dec_self_attn(dec_inputs, dec_trip_inputs, dec_inputs, dec_trip_inputs, dec_self_attn_mask)
+        out, dec_self_attn = self.dec_self_attn(dec_inputs, dec_inputs, dec_inputs, dec_self_attn_mask)
         out = self.layer_norm(dec_inputs + out)
-        out2, _, dec_enc_attn = self.dec_enc_attn(out, trip_out, enc_outputs, enc_trip_outputs, dec_enc_attn_mask)
+        out2, dec_enc_attn = self.dec_enc_attn(out, enc_outputs, enc_outputs, dec_enc_attn_mask)
         out2 = self.layer_norm(out + out2)
         out3 = self.pos_ffn(out2)
         out3 = self.layer_norm(out2 + out3)
@@ -716,22 +700,17 @@ class Decoder(nn.Module):
         self.layers = nn.ModuleList(self.layers)
         self.d_k = d_k
 
-    def forward(self, dec_inputs, dec_trip_inputs, enc_outputs, enc_trip_outputs):
+    def forward(self, dec_inputs, enc_outputs):
 
         dec_outputs = self.pos_emb(dec_inputs)
-        if "KittyCat" in self.attn_type:
-            dec_trip_outputs = self.pos_emb(dec_trip_inputs)
-        else:
-            dec_trip_outputs = None
+
         dec_self_attn_subsequent_mask = get_attn_subsequent_mask(dec_inputs)
 
         dec_self_attns, dec_enc_attns = [], []
         for layer in self.layers:
             dec_outputs, dec_self_attn, dec_enc_attn = layer(
                 dec_inputs=dec_outputs,
-                dec_trip_inputs=dec_trip_outputs,
                 enc_outputs=enc_outputs,
-                enc_trip_outputs=enc_trip_outputs,
                 dec_self_attn_mask=dec_self_attn_subsequent_mask,
                 dec_enc_attn_mask=None,
             )
@@ -770,13 +749,10 @@ class Transformer(nn.Module):
             device=device,
             attn_type=attn_type, kernel=kernel)
 
-        src_input_size = src_input_size - 1
-        tgt_input_size = tgt_input_size - 1
+        if "KittyCat" not in self.attn_type:
 
-        if "KittyCat" in self.attn_type:
-
-            self.enc_trip_embedding = nn.Linear(1, d_model)
-            self.dec_trip_embedding = nn.Linear(1, d_model)
+            src_input_size = src_input_size - 1
+            tgt_input_size = tgt_input_size - 1
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)
@@ -786,20 +762,16 @@ class Transformer(nn.Module):
 
     def forward(self, enc_inputs, dec_inputs):
 
-        if "KittyCat" in self.attn_type:
+        if "KittyCat" not in self.attn_type:
 
             enc_inputs = self.enc_embedding(enc_inputs[:, :, :-1])
             dec_inputs = self.dec_embedding(dec_inputs[:, :, :-1])
-            enc_trip_inputs = self.enc_trip_embedding(enc_inputs[:, :, -1:])
-            dec_trip_inputs = self.dec_trip_embedding(dec_inputs[:, :, -1:])
         else:
-            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-1])
-            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-1])
-            enc_trip_inputs = None
-            dec_trip_inputs = None
+            enc_inputs = self.enc_embedding(enc_inputs)
+            dec_inputs = self.dec_embedding(dec_inputs)
 
-        enc_outputs, enc_trip_outputs, enc_self_attns = self.encoder(enc_inputs, enc_trip_inputs)
-        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, dec_trip_inputs, enc_outputs, enc_trip_outputs)
+        enc_outputs, enc_self_attns = self.encoder(enc_inputs)
+        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
         dec_logits = self.projection(dec_outputs)
         outputs = dec_logits[:, -self.pred_len:, :]
         return outputs

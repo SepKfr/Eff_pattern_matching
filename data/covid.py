@@ -18,6 +18,8 @@ class CovidFormatter(GenericDataFormatter):
         ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('days_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('Number of Trips', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('Population Staying at Home', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('Population Not Staying at Home', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
     ]
 
     # Default params
@@ -55,4 +57,4 @@ class CovidFormatter(GenericDataFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 64000, 6400
+        return 1024, 1024
