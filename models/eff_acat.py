@@ -319,7 +319,7 @@ class KittyCatConv(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [1, 3, 7, 9]
+        self.filter_length = [1, 3, 6, 9]
         self.conv_list_k = nn.ModuleList([
             nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2)) for f in self.filter_length]
         ).to(device)
