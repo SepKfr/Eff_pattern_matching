@@ -210,7 +210,7 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        d_model = trial.suggest_categorical("d_model", [32, 64])
+        d_model = trial.suggest_categorical("d_model", [16, 32, 64])
         n_heads = self.model_params['num_heads']
         stack_size = self.model_params['stack_size'][0]
         kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
@@ -235,7 +235,7 @@ class Train:
                             seed=self.seed, kernel=kernel)
         model.to(self.device)
 
-        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 4000)
+        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 1000)
 
         epoch_start = 0
 
@@ -283,8 +283,8 @@ class Train:
             ]]
 
         self.best_model.eval()
-        predictions = torch.zeros_like(self.test.y_true.squeeze(-1), device=self.device)
-        targets_all = torch.zeros_like(self.test.y_true.squeeze(-1), device=self.device)
+        predictions = torch.zeros(self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2])
+        targets_all = torch.zeros(self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2])
         n_batches_test = self.test.enc.shape[0]
 
         for j in range(n_batches_test):
@@ -302,15 +302,13 @@ class Train:
 
                 targets_all[j, :targets.shape[0], :] = targets
 
-        normaliser = targets_all.abs().mean()
-        preds = predictions / normaliser
-        tgts = targets_all / normaliser
-        test_loss = self.criterion(preds, tgts).item()
+        test_loss = self.criterion(predictions.to(self.device), targets_all.to(self.device)).item()
+        normaliser = targets_all.to(self.device).abs().mean()
+        test_loss = math.sqrt(test_loss) / normaliser
 
-        test_loss = math.sqrt(test_loss)
-
-        mae_loss = self.mae_loss(preds, tgts).item()
-        mae_loss = mae_loss
+        mae_loss = self.mae_loss(predictions.to(self.device), targets_all.to(self.device)).item()
+        normaliser = targets_all.to(self.device).abs().mean()
+        mae_loss = mae_loss / normaliser
 
         print("test loss {:.4f}".format(test_loss))
 
@@ -338,8 +336,8 @@ class Train:
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='basic_attn')
-    parser.add_argument("--name", type=str, default="basic_attn")
+    parser.add_argument("--attn_type", type=str, default='KittyCatConv')
+    parser.add_argument("--name", type=str, default="KittyCatConv")
     parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
