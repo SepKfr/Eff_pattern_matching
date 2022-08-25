@@ -198,9 +198,6 @@ class Train:
 
     def objective(self, trial):
 
-        configs = self.get_configs()
-        print('number of config: {}'.format(len(configs)))
-
         val_loss = 1e10
         src_input_size = self.train.enc.shape[3]
         tgt_input_size = self.train.dec.shape[3]
