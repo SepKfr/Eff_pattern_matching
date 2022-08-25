@@ -232,7 +232,7 @@ class Train:
                             seed=self.seed, kernel=kernel)
         model.to(self.device)
 
-        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 1000)
+        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 500)
 
         epoch_start = 0
 
@@ -243,7 +243,7 @@ class Train:
             total_loss = 0
             for batch_id in range(n_batches_train):
                 output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                loss = self.criterion(output, self.train.y_true[batch_id])
+                loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
                 total_loss += loss.item()
                 optimizer.zero_grad()
                 loss.backward()
@@ -313,7 +313,7 @@ class Train:
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(test_loss)))
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(mae_loss)))
 
-        error_path = "errors_{}_{}_4.json".format(self.exp_name, self.pred_len)
+        error_path = "errors_{}_{}.json".format(self.exp_name, self.pred_len)
 
         if os.path.exists(error_path):
             with open(error_path) as json_file:
