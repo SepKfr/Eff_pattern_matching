@@ -749,7 +749,7 @@ class Transformer(nn.Module):
             device=device,
             attn_type=attn_type, kernel=kernel)
 
-        if "KittyCat" not in self.attn_type:
+        if "KittyCat" not in self.attn_type or "no-trip" in self.attn_type:
 
             src_input_size = src_input_size - 3
             tgt_input_size = tgt_input_size - 3
