@@ -328,11 +328,11 @@ class KittyCatConv(nn.Module):
             self.filter_length]
         ).to(device)
 
-        self.weighted_mavg = nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=7, padding=3, device=device)
+        self.proj_q = nn.Linear(self.d_k, 1, bias=False).to(device)
+        self.proj_k = nn.Linear(self.d_k, 1, bias=False).to(device)
 
-        self.proj = nn.Linear(self.d_k, 1, bias=False).to(device)
-
-        self.proj_back = nn.Linear(1, self.d_k, bias=False).to(device)
+        self.proj_back_q = nn.Linear(1, self.d_k, bias=False).to(device)
+        self.proj_back_k = nn.Linear(1, self.d_k, bias=False).to(device)
 
         self.norm_conv = nn.BatchNorm1d(h*d_k).to(device)
         self.activation = nn.ELU().to(device)
@@ -367,18 +367,18 @@ class KittyCatConv(nn.Module):
         Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l * len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k * len(self.filter_length), -1)
 
-        Q_proj = self.proj(Q_p)
-        K_proj = self.proj(K_p)
+        Q_proj = self.proj_q(Q_p)
+        K_proj = self.proj_k(K_p)
 
         Q = torch.topk(Q_proj, l, dim=2)[0]
-        Q = self.proj_back(Q)
+        Q = self.proj_back_q(Q)
 
         K_proj = K_proj.reshape(b, h, len(self.filter_length), l_k)
         K = torch.mean(K_proj, dim=2)
 
         K, index = torch.topk(K, l_k, dim=-1)
         K = K.unsqueeze(-1)
-        K = self.proj_back(K)
+        K = self.proj_back_k(K)
 
         #ndex = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
