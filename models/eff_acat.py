@@ -748,11 +748,16 @@ class Transformer(nn.Module):
             n_layers=n_layers, pad_index=tgt_pad_index,
             device=device,
             attn_type=attn_type, kernel=kernel)
+        self.weighted_avg_enc = nn.Conv1d(in_channels=3, out_channels=1, kernel_size=7, padding=3, device=device)
+        self.weighted_avg_dec = nn.Conv1d(in_channels=3, out_channels=1, kernel_size=7, padding=3, device=device)
 
         if "KittyCat" not in self.attn_type or "no-trip" in self.attn_type:
 
             src_input_size = src_input_size - 3
             tgt_input_size = tgt_input_size - 3
+        else :
+            src_input_size = src_input_size - 2
+            tgt_input_size = tgt_input_size - 2
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)
@@ -766,6 +771,17 @@ class Transformer(nn.Module):
             enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
             dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
         else:
+
+            lockdown_enc = torch.sigmoid(self.weighted_avg_enc(enc_inputs[:, :, -3:].
+                                                               permute(0, 2, 1)).permute(0, 2, 1))
+            lockdown_dec = torch.sigmoid(self.weighted_avg_enc(dec_inputs[:, :, -3:].
+                                                               permute(0, 2, 1)).permute(0, 2, 1))
+
+            tmp_enc = torch.where(lockdown_enc > 0.5, torch.tensor(1), torch.tensor(0))
+            tmp_dec = torch.where(lockdown_dec > 0.5, torch.tensor(1), torch.tensor(0))
+
+            enc_inputs = torch.cat([enc_inputs[:, :, :-3], tmp_enc], dim=-1)
+            dec_inputs = torch.cat([dec_inputs[:, :, :-3], tmp_dec], dim=-1)
             enc_inputs = self.enc_embedding(enc_inputs)
             dec_inputs = self.dec_embedding(dec_inputs)
 
