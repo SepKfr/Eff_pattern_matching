@@ -763,6 +763,7 @@ class Transformer(nn.Module):
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)
         self.attn_type = attn_type
         self.pred_len = pred_len
+        self.device = device
         self.projection = nn.Linear(d_model, 1, bias=False)
 
     def forward(self, enc_inputs, dec_inputs):
@@ -777,8 +778,8 @@ class Transformer(nn.Module):
             lockdown_dec = torch.sigmoid(self.weighted_avg_enc(dec_inputs[:, :, -3:].
                                                                permute(0, 2, 1)).permute(0, 2, 1))
 
-            tmp_enc = torch.where(lockdown_enc > 0.5, torch.tensor(1), torch.tensor(0))
-            tmp_dec = torch.where(lockdown_dec > 0.5, torch.tensor(1), torch.tensor(0))
+            tmp_enc = torch.where(lockdown_enc > 0.5, torch.tensor(1, device=self.device), torch.tensor(0, device=self.device))
+            tmp_dec = torch.where(lockdown_dec > 0.5, torch.tensor(1, device=self.device), torch.tensor(0, device=self.device))
 
             enc_inputs = torch.cat([enc_inputs[:, :, :-3], tmp_enc], dim=-1)
             dec_inputs = torch.cat([dec_inputs[:, :, :-3], tmp_dec], dim=-1)
