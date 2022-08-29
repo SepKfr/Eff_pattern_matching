@@ -748,19 +748,18 @@ class Transformer(nn.Module):
             n_layers=n_layers, pad_index=tgt_pad_index,
             device=device,
             attn_type=attn_type, kernel=kernel)
-        self.weighted_avg_enc = nn.Conv1d(in_channels=3, out_channels=1, kernel_size=7, padding=3, device=device)
-        self.weighted_avg_dec = nn.Conv1d(in_channels=3, out_channels=1, kernel_size=7, padding=3, device=device)
 
-        if "KittyCat" not in self.attn_type or "no-trip" in self.attn_type:
+        if "KittyCat" in self.attn_type:
 
-            src_input_size = src_input_size - 3
-            tgt_input_size = tgt_input_size - 3
-        else :
-            src_input_size = src_input_size - 2
-            tgt_input_size = tgt_input_size - 2
-
-        self.enc_embedding = nn.Linear(src_input_size, d_model)
-        self.dec_embedding = nn.Linear(tgt_input_size, d_model)
+            self.enc_embedding_trip = nn.Linear(3, d_model)
+            self.dec_embedding_trip = nn.Linear(3, d_model)
+            self.enc_embedding = nn.Linear(src_input_size-2, d_model)
+            self.dec_embedding = nn.Linear(tgt_input_size-2, d_model)
+            self.projection_enc = nn.Linear(d_model, 1, bias=False)
+            self.projection_dec = nn.Linear(d_model, 1, bias=False)
+        else:
+            self.enc_embedding = nn.Linear(src_input_size-3, d_model)
+            self.dec_embedding = nn.Linear(tgt_input_size-3, d_model)
         self.attn_type = attn_type
         self.pred_len = pred_len
         self.device = device
@@ -768,23 +767,16 @@ class Transformer(nn.Module):
 
     def forward(self, enc_inputs, dec_inputs):
 
-        if "KittyCat" not in self.attn_type or "no-trip" in self.attn_type:
-            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
-            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
-        else:
+        if "KittyCat" in self.attn_type:
 
-            lockdown_enc = torch.sigmoid(self.weighted_avg_enc(enc_inputs[:, :, -3:].
-                                                               permute(0, 2, 1)).permute(0, 2, 1))
-            lockdown_dec = torch.sigmoid(self.weighted_avg_enc(dec_inputs[:, :, -3:].
-                                                               permute(0, 2, 1)).permute(0, 2, 1))
-
-            tmp_enc = torch.where(lockdown_enc > 0.5, torch.tensor(1, device=self.device), torch.tensor(0, device=self.device))
-            tmp_dec = torch.where(lockdown_dec > 0.5, torch.tensor(1, device=self.device), torch.tensor(0, device=self.device))
-
-            enc_inputs = torch.cat([enc_inputs[:, :, :-3], tmp_enc], dim=-1)
-            dec_inputs = torch.cat([dec_inputs[:, :, :-3], tmp_dec], dim=-1)
+            enc_outputs = self.enc_embedding_trip(enc_inputs[:, :, -3:])
+            dec_outputs = self.dec_embedding_trip(dec_inputs[:, :, -3:])
+            enc_outputs, enc_self_attns = self.encoder(enc_outputs)
+            dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_outputs, enc_outputs)
+            enc_inputs = torch.cat([self.projection_enc(enc_outputs), enc_inputs[:, :, :-3]], dim=-1)
+            dec_inputs = torch.cat([self.projection_dec(dec_outputs), dec_inputs[:, :, :-3]], dim=-1)
             enc_inputs = self.enc_embedding(enc_inputs)
-            dec_inputs = self.dec_embedding(dec_inputs)
+            dec_inputs = self.enc_embedding(dec_inputs)
 
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
         dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
