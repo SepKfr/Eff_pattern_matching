@@ -771,12 +771,15 @@ class Transformer(nn.Module):
 
             enc_outputs = self.enc_embedding_trip(enc_inputs[:, :, -3:])
             dec_outputs = self.dec_embedding_trip(dec_inputs[:, :, -3:])
+
             enc_outputs, enc_self_attns = self.encoder(enc_outputs)
             dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_outputs, enc_outputs)
+
             enc_inputs = torch.cat([self.projection_enc(enc_outputs), enc_inputs[:, :, :-3]], dim=-1)
             dec_inputs = torch.cat([self.projection_dec(dec_outputs), dec_inputs[:, :, :-3]], dim=-1)
-            enc_inputs = self.enc_embedding(enc_inputs)
-            dec_inputs = self.enc_embedding(dec_inputs)
+
+        enc_inputs = self.enc_embedding(enc_inputs)
+        dec_inputs = self.dec_embedding(dec_inputs)
 
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
         dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
