@@ -751,15 +751,15 @@ class Transformer(nn.Module):
 
         if "KittyCat" in self.attn_type:
 
-            self.enc_embedding_trip = nn.Linear(3, d_model)
+            self.enc_embedding_trip = nn.Linear(1, d_model)
 
-            self.enc_embedding = nn.Linear(src_input_size-2, d_model)
-            self.dec_embedding = nn.Linear(tgt_input_size-2, d_model)
+            self.enc_embedding = nn.Linear(src_input_size, d_model)
+            self.dec_embedding = nn.Linear(tgt_input_size, d_model)
             self.projection_enc = nn.Linear(d_model, 1, bias=False)
 
         else:
-            self.enc_embedding = nn.Linear(src_input_size-3, d_model)
-            self.dec_embedding = nn.Linear(tgt_input_size-3, d_model)
+            self.enc_embedding = nn.Linear(src_input_size-1, d_model)
+            self.dec_embedding = nn.Linear(tgt_input_size-1, d_model)
         self.attn_type = attn_type
         self.pred_len = pred_len
         self.device = device
@@ -769,12 +769,12 @@ class Transformer(nn.Module):
 
         if "KittyCat" in self.attn_type:
 
-            enc_outputs = self.enc_embedding_trip(enc_inputs[:, :, -3:])
+            enc_outputs = self.enc_embedding_trip(enc_inputs[:, :, -1:])
             enc_outputs, enc_self_attns = self.encoder(enc_outputs)
             tmp = self.projection_enc(enc_outputs)
 
-            enc_inputs = torch.cat([tmp, enc_inputs[:, :, :-3]], dim=-1)
-            dec_inputs = torch.cat([tmp[:, -self.pred_len:, :], dec_inputs[:, :, :-3]], dim=-1)
+            enc_inputs = torch.cat([tmp, enc_inputs[:, :, :-1]], dim=-1)
+            dec_inputs = torch.cat([tmp[:, -self.pred_len:, :], dec_inputs[:, :, :-1]], dim=-1)
 
         enc_inputs = self.enc_embedding(enc_inputs)
         dec_inputs = self.dec_embedding(dec_inputs)
