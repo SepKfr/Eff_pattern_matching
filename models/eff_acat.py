@@ -757,28 +757,22 @@ class Transformer(nn.Module):
             self.projection = nn.Linear(d_model, 2, bias=False)
 
         else:
-            self.enc_embedding = nn.Linear(src_input_size-1, d_model)
-            self.dec_embedding = nn.Linear(tgt_input_size-1, d_model)
+            self.enc_embedding = nn.Linear(src_input_size-3, d_model)
+            self.dec_embedding = nn.Linear(tgt_input_size-3, d_model)
             self.projection = nn.Linear(d_model, 1, bias=False)
         self.attn_type = attn_type
         self.pred_len = pred_len
         self.device = device
 
-
-    def predict(self, enc, dec):
-
-        enc_out, _ = self.encoder(enc)
-        dec_out, _, _ = self.decoder(dec, enc_out)
-        dec_log = self.projection(dec_out)
-        return dec_log[:, -self.pred_len:, :], enc_out, dec_out
-
     def forward(self, enc_inputs, dec_inputs):
 
         if "KittyCat" not in self.attn_type:
 
-            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-1])
-            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-1])
+            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
+            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
+
         else:
+
             enc_inputs = self.enc_embedding(enc_inputs)
             dec_inputs = self.dec_embedding(dec_inputs)
 
