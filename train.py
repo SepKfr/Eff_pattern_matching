@@ -272,6 +272,7 @@ class Train:
                            self.mae_loss(output_covid, self.valid.y_true[j, :, :, 0:1])
                     loss_trip = self.criterion(output_trip, self.valid.y_true[j, :, :, 1:]) + \
                                  self.mae_loss(output_trip, self.valid.y_true[j, :, :, 1:])
+                    output_trip = F.log_softmax(output_trip)
                     loss = loss_covid + loss_trip + kl_loss(output_covid, output_trip)
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])
