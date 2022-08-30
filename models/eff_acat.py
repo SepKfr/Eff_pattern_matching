@@ -319,7 +319,7 @@ class KittyCatConv(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [1, 7]
+        self.filter_length = [1, 3, 7, 9]
         self.conv_list_k = nn.ModuleList([
             nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2)) for f in self.filter_length]
         ).to(device)
@@ -752,19 +752,18 @@ class Transformer(nn.Module):
 
         if "KittyCat" in self.attn_type:
 
-            self.enc_embedding_covid = nn.Linear(5, d_model)
-            self.dec_embedding_covid = nn.Linear(5, d_model)
-            self.enc_embedding_trip = nn.Linear(3, d_model)
-            self.dec_embedding_trip = nn.Linear(3, d_model)
-
+            self.enc_embedding = nn.Linear(src_input_size, d_model)
+            self.dec_embedding = nn.Linear(tgt_input_size, d_model)
+            self.projection = nn.Linear(d_model, 2, bias=False)
 
         else:
             self.enc_embedding = nn.Linear(src_input_size-1, d_model)
             self.dec_embedding = nn.Linear(tgt_input_size-1, d_model)
+            self.projection = nn.Linear(d_model, 1, bias=False)
         self.attn_type = attn_type
         self.pred_len = pred_len
         self.device = device
-        self.projection = nn.Linear(d_model, 1, bias=False)
+
 
     def predict(self, enc, dec):
 
@@ -775,30 +774,16 @@ class Transformer(nn.Module):
 
     def forward(self, enc_inputs, dec_inputs):
 
-        if "KittyCat" in self.attn_type:
+        if "KittyCat" not in self.attn_type:
 
-            enc_inputs_trip = self.enc_embedding_trip(enc_inputs[:, :, -3:])
-            dec_inputs_trip = self.dec_embedding_trip(dec_inputs[:, :, -3:])
-
-            enc_inputs_covid = self.enc_embedding_covid(enc_inputs[:, :, :-1])
-            dec_inputs_covid = self.dec_embedding_covid(dec_inputs[:, :, :-1])
-
-            _, enc_out, dec_out = self.predict(enc_inputs_trip, dec_inputs_trip)
-            covid, _, _ = self.predict(enc_inputs_covid+enc_out, dec_inputs_covid+dec_out)
-
-            _, enc_out, dec_out = self.predict(enc_inputs_covid, dec_inputs_covid)
-
-            trip, _, _ = self.predict(enc_inputs_trip+enc_out, dec_inputs_trip+dec_out)
-
-            return covid, trip
-
+            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-1])
+            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-1])
         else:
-
             enc_inputs = self.enc_embedding(enc_inputs)
             dec_inputs = self.dec_embedding(dec_inputs)
 
-            enc_outputs, enc_self_attns = self.encoder(enc_inputs)
-            dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
-            dec_logits = self.projection(dec_outputs)
-            outputs = dec_logits[:, -self.pred_len:, :]
-            return outputs
+        enc_outputs, enc_self_attns = self.encoder(enc_inputs)
+        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
+        dec_logits = self.projection(dec_outputs)
+        outputs = dec_logits[:, -self.pred_len:, :]
+        return outputs

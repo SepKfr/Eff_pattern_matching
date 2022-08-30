@@ -246,7 +246,9 @@ class Train:
             total_loss = 0
             for batch_id in range(n_batches_train):
                 if "KittyCat" in self.attn_type:
-                    output_covid, output_trip = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    output = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    output_covid = output[:, :, 0:1]
+                    output_trip = output[:, :, 1:]
                     loss_covid = self.criterion(output_covid, self.train.y_true[batch_id, :, :, 0:1]) + \
                            self.mae_loss(output_covid, self.train.y_true[batch_id, :, :, 0:1])
                     loss_trip = self.criterion(output_trip, self.train.y_true[batch_id, :, :, 1:]) + \
@@ -268,7 +270,9 @@ class Train:
             test_loss = 0
             for j in range(n_batches_valid):
                 if "KittyCat" in self.attn_type:
-                    output_covid, output_trip = model(self.valid.enc[j], self.valid.dec[j])
+                    output = model(self.valid.enc[j], self.valid.dec[j])
+                    output_covid = output[:, :, 0:1]
+                    output_trip = output[:, :, 1:]
                     loss_covid = self.criterion(output_covid, self.valid.y_true[j, :, :, 0:1]) + \
                            self.mae_loss(output_covid, self.valid.y_true[j, :, :, 0:1])
                     loss_trip = self.criterion(output_trip, self.valid.y_true[j, :, :, 1:]) + \
