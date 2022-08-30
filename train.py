@@ -238,12 +238,22 @@ class Train:
 
         val_inner_loss = 1e10
 
+        kl_loss = nn.KLDivLoss(reduction="batchmean", log_target=True)
+
         for epoch in range(epoch_start, self.num_epochs, 1):
 
             total_loss = 0
             for batch_id in range(n_batches_train):
-                output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
+                if "KittyCat" in self.attn_type:
+                    output_covid, output_trip = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    loss_covid = self.criterion(output_covid, self.train.y_true[batch_id, :, :, 0:1]) + \
+                           self.mae_loss(output_covid, self.train.y_true[batch_id, :, :, 0:1])
+                    loss_trip = self.criterion(output_trip, self.train.y_true[batch_id, :, :, 1:]) + \
+                                 self.mae_loss(output_trip, self.train.y_true[batch_id, :, :, 1:])
+                    loss = loss_covid + loss_trip + kl_loss(output_covid, output_trip)
+                else:
+                    loss = model(self.train.enc[batch_id], self.train.dec[batch_id])
+
                 total_loss += loss.item()
                 optimizer.zero_grad()
                 loss.backward()
@@ -254,8 +264,17 @@ class Train:
             model.eval()
             test_loss = 0
             for j in range(n_batches_valid):
-                outputs = model(self.valid.enc[j], self.valid.dec[j])
-                loss = self.criterion(self.valid.y_true[j], outputs)
+                if "KittyCat" in self.attn_type:
+                    output_covid, output_trip = model(self.valid.enc[j], self.valid.dec[j])
+                    loss_covid = self.criterion(output_covid, self.valid.y_true[j, :, :, 0:1]) + \
+                           self.mae_loss(output_covid, self.valid.y_true[j, :, :, 0:1])
+                    loss_trip = self.criterion(output_trip, self.valid.y_true[j, :, :, 1:]) + \
+                                 self.mae_loss(output_trip, self.valid.y_true[j, :, :, 1:])
+                    loss = loss_covid + loss_trip + kl_loss(output_covid, output_trip)
+                else:
+                    outputs = model(self.valid.enc[j], self.valid.dec[j])
+                    loss = self.criterion(self.valid.y_true[j], outputs)
+
                 test_loss += loss.item()
 
             print("val loss: {:.4f}".format(test_loss))
@@ -286,7 +305,10 @@ class Train:
 
         for j in range(n_batches_test):
 
-            output = self.best_model(self.test.enc[j], self.test.dec[j])
+            if "KittyCat" in self.attn_type:
+                output, _ = self.best_model(self.test.enc[j], self.test.dec[j])
+            else:
+                output = self.best_model(self.test.enc[j], self.test.dec[j])
             output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:

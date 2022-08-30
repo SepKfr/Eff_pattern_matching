@@ -17,7 +17,7 @@ class CovidFormatter(GenericDataFormatter):
         ('PEOPLE_DEATH_COUNT', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('days_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-        ('Number of Trips', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('Number of Trips', DataTypes.REAL_VALUED, InputTypes.TRIP),
     ]
 
     # Default params
@@ -55,4 +55,4 @@ class CovidFormatter(GenericDataFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 64000, 6400
+        return 1024, 1024

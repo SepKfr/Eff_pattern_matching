@@ -319,7 +319,7 @@ class KittyCatConv(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [1, 3, 7, 9]
+        self.filter_length = [1, 7]
         self.conv_list_k = nn.ModuleList([
             nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2)) for f in self.filter_length]
         ).to(device)
@@ -402,7 +402,7 @@ class KittyCat(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [1, 3, 7, 9]
+        self.filter_length = [1, 3, 7]
         self.gaussian_list_q = nn.ModuleList([
             T.GaussianBlur(kernel_size=f, sigma=(f-1)/6 if f > 1 else f) for f in self.filter_length]
         ).to(device)
@@ -737,6 +737,7 @@ class Transformer(nn.Module):
         np.random.seed(seed)
 
         self.attn_type = attn_type
+
         self.encoder = Encoder(
             d_model=d_model, d_ff=d_ff,
             d_k=d_k, d_v=d_v, n_heads=n_heads,
@@ -751,11 +752,11 @@ class Transformer(nn.Module):
 
         if "KittyCat" in self.attn_type:
 
-            self.enc_embedding_trip = nn.Linear(1, d_model)
+            self.enc_embedding_covid = nn.Linear(5, d_model)
+            self.dec_embedding_covid = nn.Linear(5, d_model)
+            self.enc_embedding_trip = nn.Linear(3, d_model)
+            self.dec_embedding_trip = nn.Linear(3, d_model)
 
-            self.enc_embedding = nn.Linear(src_input_size, d_model)
-            self.dec_embedding = nn.Linear(tgt_input_size, d_model)
-            self.projection_enc = nn.Linear(d_model, 1, bias=False)
 
         else:
             self.enc_embedding = nn.Linear(src_input_size-1, d_model)
@@ -765,22 +766,39 @@ class Transformer(nn.Module):
         self.device = device
         self.projection = nn.Linear(d_model, 1, bias=False)
 
+    def predict(self, enc, dec):
+
+        enc_out, _ = self.encoder(enc)
+        dec_out, _, _ = self.decoder(dec, enc_out)
+        dec_log = self.projection(dec_out)
+        return dec_log[:, -self.pred_len:, :], enc_out, dec_out
+
     def forward(self, enc_inputs, dec_inputs):
 
         if "KittyCat" in self.attn_type:
 
-            enc_outputs = self.enc_embedding_trip(enc_inputs[:, :, -1:])
-            enc_outputs, enc_self_attns = self.encoder(enc_outputs)
-            tmp = self.projection_enc(enc_outputs)
+            enc_inputs_trip = self.enc_embedding_trip(enc_inputs[:, :, -3:])
+            dec_inputs_trip = self.dec_embedding_trip(dec_inputs[:, :, -3:])
 
-            enc_inputs = torch.cat([tmp, enc_inputs[:, :, :-1]], dim=-1)
-            dec_inputs = torch.cat([tmp[:, -self.pred_len:, :], dec_inputs[:, :, :-1]], dim=-1)
+            enc_inputs_covid = self.enc_embedding_covid(enc_inputs[:, :, :-1])
+            dec_inputs_covid = self.dec_embedding_covid(dec_inputs[:, :, :-1])
 
-        enc_inputs = self.enc_embedding(enc_inputs)
-        dec_inputs = self.dec_embedding(dec_inputs)
+            _, enc_out, dec_out = self.predict(enc_inputs_trip, dec_inputs_trip)
+            covid, _, _ = self.predict(enc_inputs_covid+enc_out, dec_inputs_covid+dec_out)
 
-        enc_outputs, enc_self_attns = self.encoder(enc_inputs)
-        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
-        dec_logits = self.projection(dec_outputs)
-        outputs = dec_logits[:, -self.pred_len:, :]
-        return outputs
+            _, enc_out, dec_out = self.predict(enc_inputs_covid, dec_inputs_covid)
+
+            trip, _, _ = self.predict(enc_inputs_trip+enc_out, dec_inputs_trip+dec_out)
+
+            return covid, trip
+
+        else:
+
+            enc_inputs = self.enc_embedding(enc_inputs)
+            dec_inputs = self.dec_embedding(dec_inputs)
+
+            enc_outputs, enc_self_attns = self.encoder(enc_inputs)
+            dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
+            dec_logits = self.projection(dec_outputs)
+            outputs = dec_logits[:, -self.pred_len:, :]
+            return outputs
