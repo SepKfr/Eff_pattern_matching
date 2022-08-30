@@ -315,7 +315,8 @@ class Train:
         for j in range(n_batches_test):
 
             if "KittyCat" in self.attn_type:
-                output, _ = self.best_model(self.test.enc[j], self.test.dec[j])
+                output = self.best_model(self.test.enc[j], self.test.dec[j])
+                output = output[:, :, 0:1]
             else:
                 output = self.best_model(self.test.enc[j], self.test.dec[j])
             output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
