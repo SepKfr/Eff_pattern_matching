@@ -749,16 +749,23 @@ class Transformer(nn.Module):
             n_layers=n_layers, pad_index=tgt_pad_index,
             device=device,
             attn_type=attn_type, kernel=kernel)
+        self.decoder_backward = Decoder(
+            d_model=d_model, d_ff=d_ff,
+            d_k=d_k, d_v=d_v, n_heads=n_heads,
+            n_layers=n_layers, pad_index=tgt_pad_index,
+            device=device,
+            attn_type=attn_type, kernel=kernel)
 
         if "KittyCat" in self.attn_type:
 
             self.enc_embedding = nn.Linear(src_input_size, d_model)
-            self.dec_embedding = nn.Linear(tgt_input_size, d_model)
-            self.projection = nn.Linear(d_model, 2, bias=False)
-
+            self.dec_embedding_forward = nn.Linear(tgt_input_size, d_model)
+            self.dec_embedding_backward = nn.Linear(tgt_input_size, d_model)
+            self.projection_forward = nn.Linear(d_model, 1, bias=False)
+            self.projection_backward = nn.Linear(d_model, 1, bias=False)
         else:
-            self.enc_embedding = nn.Linear(src_input_size-3, d_model)
-            self.dec_embedding = nn.Linear(tgt_input_size-3, d_model)
+            self.enc_embedding = nn.Linear(src_input_size, d_model)
+            self.dec_embedding = nn.Linear(tgt_input_size, d_model)
             self.projection = nn.Linear(d_model, 1, bias=False)
         self.attn_type = attn_type
         self.pred_len = pred_len
@@ -766,18 +773,25 @@ class Transformer(nn.Module):
 
     def forward(self, enc_inputs, dec_inputs):
 
-        if "KittyCat" not in self.attn_type:
+        if "KittyCat" in self.attn_type:
 
-            enc_inputs = self.enc_embedding(enc_inputs[:, :, :-3])
-            dec_inputs = self.dec_embedding(dec_inputs[:, :, :-3])
+            enc_inputs = self.enc_embedding(enc_inputs)
+            dec_inputs_forward = self.dec_embedding_forward(dec_inputs)
+            dec_inputs_backward = self.dec_embedding_backward(torch.flip(dec_inputs, [1]))
+            enc_outputs, enc_self_attns = self.encoder(enc_inputs)
+            dec_outputs_forward, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs_forward, enc_outputs)
+            dec_outputs_backward, dec_self_attns, dec_enc_attns = self.decoder_backward(dec_inputs_backward, enc_outputs)
+            output_forward = self.projection_forward(dec_outputs_forward)
+            output_backward = self.projection_forward(torch.flip(dec_outputs_backward, [1]))
+            return output_forward, output_backward
 
         else:
 
             enc_inputs = self.enc_embedding(enc_inputs)
             dec_inputs = self.dec_embedding(dec_inputs)
 
-        enc_outputs, enc_self_attns = self.encoder(enc_inputs)
-        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
-        dec_logits = self.projection(dec_outputs)
-        outputs = dec_logits[:, -self.pred_len:, :]
+            enc_outputs, enc_self_attns = self.encoder(enc_inputs)
+            dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
+            dec_logits = self.projection(dec_outputs)
+            outputs = dec_logits[:, -self.pred_len:, :]
         return outputs

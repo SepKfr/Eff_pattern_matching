@@ -247,15 +247,13 @@ class Train:
             for batch_id in range(n_batches_train):
                 if "KittyCat" in self.attn_type:
 
-                    output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                    output_covid = output[:, :, 0:1]
-                    output_trip = output[:, :, 1:]
-                    loss_covid = self.criterion(output_covid, self.train.y_true[batch_id, :, :, 0:1]) + \
-                           self.mae_loss(output_covid, self.train.y_true[batch_id, :, :, 0:1])
+                    output_f, output_b = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    loss_f = self.criterion(output_f, self.train.y_true[batch_id, :, :, 0:1]) + \
+                           self.mae_loss(output_f, self.train.y_true[batch_id, :, :, 0:1])
 
-                    output_trip = torch.log_softmax(output_trip, dim=1)
-                    output_covid = torch.log_softmax(output_covid, dim=1)
-                    loss = loss_covid + kl_loss(output_covid, output_trip)
+                    output_f = torch.log_softmax(output_f, dim=1)
+                    output_b = torch.log_softmax(output_b, dim=1)
+                    loss = loss_f + kl_loss(output_f, output_b)
                 else:
                     loss = model(self.train.enc[batch_id], self.train.dec[batch_id])
 
@@ -270,14 +268,12 @@ class Train:
             test_loss = 0
             for j in range(n_batches_valid):
                 if "KittyCat" in self.attn_type:
-                    output = model(self.valid.enc[j], self.valid.dec[j])
-                    output_covid = output[:, :, 0:1]
-                    output_trip = output[:, :, 1:]
-                    loss_covid = self.criterion(output_covid, self.valid.y_true[j, :, :, 0:1]) + \
-                           self.mae_loss(output_covid, self.valid.y_true[j, :, :, 0:1])
-                    output_trip = torch.log_softmax(output_trip, dim=1)
-                    output_covid = torch.log_softmax(output_covid, dim=1)
-                    loss = loss_covid + kl_loss(output_covid, output_trip)
+                    output_f, output_b = model(self.valid.enc[j], self.valid.dec[j])
+                    loss_f = self.criterion(output_f, self.valid.y_true[j, :, :, 0:1]) + \
+                           self.mae_loss(output_f, self.valid.y_true[j, :, :, 0:1])
+                    output_f = torch.log_softmax(output_f, dim=1)
+                    output_b = torch.log_softmax(output_b, dim=1)
+                    loss = loss_f + kl_loss(output_f, output_b)
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])
                     loss = self.criterion(self.valid.y_true[j], outputs)
@@ -380,7 +376,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [168]:
+    for pred_len in [24, 48, 72, 96, 168]:
         Train(raw_data, args, pred_len)
 
 
