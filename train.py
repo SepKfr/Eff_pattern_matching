@@ -380,7 +380,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [24, 48, 72, 96]:
+    for pred_len in [168]:
         Train(raw_data, args, pred_len)
 
 
