@@ -36,7 +36,6 @@ class InputTypes(enum.IntEnum):
     STATIC_INPUT = 3
     ID = 4  # Single column used as an entity identifier
     TIME = 5  # Single column exclusively used as a time index
-    TRIP = 6
 
 
 class GenericDataFormatter(abc.ABC):

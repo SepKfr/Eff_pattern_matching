@@ -98,7 +98,6 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, pred_le
     id_col = utils.get_single_col_by_input_type(InputTypes.ID, column_definition)
     time_col = utils.get_single_col_by_input_type(InputTypes.TIME, column_definition)
     target_col = utils.get_single_col_by_input_type(InputTypes.TARGET, column_definition)
-    trip_col = utils.get_single_col_by_input_type(InputTypes.TRIP, column_definition)
     enc_input_cols = [
         tup[0]
         for tup in column_definition
