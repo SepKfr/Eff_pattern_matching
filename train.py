@@ -249,12 +249,12 @@ class Train:
 
                     output_f, output_b = model(self.train.enc[batch_id], self.train.dec[batch_id])
                     loss_f = self.criterion(output_f, self.train.y_true[batch_id]) + self.mae_loss(output_f, self.train.y_true[batch_id])
-
                     output_f = torch.log_softmax(output_f, dim=1)
                     output_b = torch.log_softmax(output_b, dim=1)
                     loss = loss_f + kl_loss(output_f, output_b)
                 else:
-                    loss = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    output = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
 
                 total_loss += loss.item()
                 optimizer.zero_grad()
@@ -356,8 +356,8 @@ class Train:
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='KittyCatConv')
-    parser.add_argument("--name", type=str, default="KittyCatConv")
+    parser.add_argument("--attn_type", type=str, default='ACAT')
+    parser.add_argument("--name", type=str, default="ACAT")
     parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
