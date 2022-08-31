@@ -248,7 +248,7 @@ class Train:
                 if "KittyCat" in self.attn_type:
 
                     output_f, output_b = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                    loss_f = self.criterion(output_f, self.train.y_true) + self.mae_loss(output_f, self.train.y_true)
+                    loss_f = self.criterion(output_f, self.train.y_true[batch_id]) + self.mae_loss(output_f, self.train.y_true[batch_id])
 
                     output_f = torch.log_softmax(output_f, dim=1)
                     output_b = torch.log_softmax(output_b, dim=1)
@@ -268,7 +268,7 @@ class Train:
             for j in range(n_batches_valid):
                 if "KittyCat" in self.attn_type:
                     output_f, output_b = model(self.valid.enc[j], self.valid.dec[j])
-                    loss_f = self.criterion(output_f, self.valid.y_true) + self.mae_loss(output_f, self.valid.y_true)
+                    loss_f = self.criterion(output_f, self.valid.y_true[j]) + self.mae_loss(output_f, self.valid.y_true[j])
                     output_f = torch.log_softmax(output_f, dim=1)
                     output_b = torch.log_softmax(output_b, dim=1)
                     loss = loss_f + kl_loss(output_f, output_b)
