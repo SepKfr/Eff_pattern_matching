@@ -782,7 +782,7 @@ class Transformer(nn.Module):
             dec_outputs_forward, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs_forward, enc_outputs)
             dec_outputs_backward, dec_self_attns, dec_enc_attns = self.decoder_backward(dec_inputs_backward, enc_outputs)
             output_forward = self.projection_forward(dec_outputs_forward)
-            output_backward = self.projection_forward(torch.flip(dec_outputs_backward, [1]))
+            output_backward = self.projection_backward(torch.flip(dec_outputs_backward, [1]))
             return output_forward, output_backward
 
         else:
