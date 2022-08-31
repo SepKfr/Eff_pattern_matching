@@ -756,7 +756,7 @@ class Transformer(nn.Module):
             device=device,
             attn_type=attn_type, kernel=kernel)
 
-        if "KittyCat" in self.attn_type:
+        if "ACAT" in self.attn_type:
 
             self.enc_embedding = nn.Linear(src_input_size, d_model)
             self.dec_embedding_forward = nn.Linear(tgt_input_size, d_model)
@@ -773,7 +773,7 @@ class Transformer(nn.Module):
 
     def forward(self, enc_inputs, dec_inputs):
 
-        if "KittyCat" in self.attn_type:
+        if "ACAT" in self.attn_type:
 
             enc_inputs = self.enc_embedding(enc_inputs)
             dec_inputs_forward = self.dec_embedding_forward(dec_inputs)
