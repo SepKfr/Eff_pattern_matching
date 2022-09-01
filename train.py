@@ -293,10 +293,7 @@ class Train:
 
         for j in range(n_batches_test):
 
-            if "KittyCat" in self.attn_type:
-                output, _ = self.best_model(self.test.enc[j], self.test.dec[j])
-            else:
-                output = self.best_model(self.test.enc[j], self.test.dec[j])
+            output = self.best_model(self.test.enc[j], self.test.dec[j])
             output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
