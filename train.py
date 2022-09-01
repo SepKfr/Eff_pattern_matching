@@ -253,11 +253,11 @@ class Train:
                     output_f = torch.log_softmax(output_f, dim=1)
                     output_b = torch.log_softmax(output_b, dim=1)
                     loss = loss_f + loss_b + kl_loss(output_f, output_b)
-                    total_loss += loss_f.item()
                 else:
                     output = model(self.train.enc[batch_id], self.train.dec[batch_id])
                     loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
-                    total_loss += loss.item()
+
+                total_loss += loss.item()
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -270,12 +270,12 @@ class Train:
             for j in range(n_batches_valid):
                 if "KittyCat" in self.attn_type:
                     output_f, output_b = model(self.valid.enc[j], self.valid.dec[j])
-                    loss_f = self.criterion(output_f, self.valid.y_true[j]) + self.mae_loss(output_f, self.valid.y_true[j])
-                    test_loss += loss_f.item()
+                    loss = self.criterion(output_f, self.valid.y_true[j]) + self.mae_loss(output_f, self.valid.y_true[j])
+
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])
-                    loss = self.criterion(self.valid.y_true[j], outputs)
-                    test_loss += loss.item()
+                    loss = self.criterion(outputs, self.valid.y_true[j]) + self.mae_loss(outputs, self.valid.y_true[j])
+                test_loss += loss.item()
 
             print("val loss: {:.4f}".format(test_loss))
 
