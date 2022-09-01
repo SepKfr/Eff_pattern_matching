@@ -245,17 +245,9 @@ class Train:
 
             total_loss = 0
             for batch_id in range(n_batches_train):
-                if "KittyCat" in self.attn_type:
 
-                    output_f, output_b = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                    loss_f = self.criterion(output_f, self.train.y_true[batch_id]) + self.mae_loss(output_f, self.train.y_true[batch_id])
-                    loss_b = self.criterion(output_b, self.train.y_true[batch_id]) + self.mae_loss(output_b, self.train.y_true[batch_id])
-                    output_f = torch.log_softmax(output_f, dim=1)
-                    output_b = torch.log_softmax(output_b, dim=1)
-                    loss = loss_f + loss_b + kl_loss(output_f, output_b)
-                else:
-                    output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                    loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
+                output = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
 
                 total_loss += loss.item()
 
@@ -268,13 +260,9 @@ class Train:
             model.eval()
             test_loss = 0
             for j in range(n_batches_valid):
-                if "KittyCat" in self.attn_type:
-                    output_f, output_b = model(self.valid.enc[j], self.valid.dec[j])
-                    loss = self.criterion(output_f, self.valid.y_true[j]) + self.mae_loss(output_f, self.valid.y_true[j])
 
-                else:
-                    outputs = model(self.valid.enc[j], self.valid.dec[j])
-                    loss = self.criterion(outputs, self.valid.y_true[j]) + self.mae_loss(outputs, self.valid.y_true[j])
+                outputs = model(self.valid.enc[j], self.valid.dec[j])
+                loss = self.criterion(outputs, self.valid.y_true[j]) + self.mae_loss(outputs, self.valid.y_true[j])
                 test_loss += loss.item()
 
             print("val loss: {:.4f}".format(test_loss))
@@ -372,7 +360,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [24, 48, 72, 96, 168]:
+    for pred_len in [24, 48, 72]:
         Train(raw_data, args, pred_len)
 
 
