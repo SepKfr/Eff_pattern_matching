@@ -336,7 +336,6 @@ class KittyCatConv(nn.Module):
 
         self.norm_conv = nn.BatchNorm1d(h*d_k).to(device)
         self.activation = nn.ELU().to(device)
-        self.trip = trip
 
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
@@ -350,10 +349,6 @@ class KittyCatConv(nn.Module):
         l_k = K.shape[2]
         Q_l = []
         K_l = []
-
-        Q = Q
-        K = K
-        V = V
 
         Q = Q.reshape(b, h * d_k, l)
         K = K.reshape(b, h * d_k, l_k)
@@ -541,7 +536,7 @@ class MultiHeadAttention(nn.Module):
         batch_size = Q.shape[0]
         q_s = self.WQ(Q).view(batch_size, -1, self.n_heads, self.d_k).transpose(1, 2)
         k_s = self.WK(K).view(batch_size, -1, self.n_heads, self.d_k).transpose(1, 2)
-        v_s = self.WV(K).view(batch_size, -1, self.n_heads, self.d_v).transpose(1, 2)
+        v_s = self.WV(V).view(batch_size, -1, self.n_heads, self.d_v).transpose(1, 2)
 
         if attn_mask is not None:
             attn_mask = attn_mask.unsqueeze(1).repeat(1, self.n_heads, 1, 1)

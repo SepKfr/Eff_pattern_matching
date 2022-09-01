@@ -208,7 +208,7 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        d_model = trial.suggest_categorical("d_model", [64])
+        d_model = trial.suggest_categorical("d_model", [16, 32])
         n_heads = self.model_params['num_heads']
         stack_size = self.model_params['stack_size'][0]
         kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
@@ -233,13 +233,11 @@ class Train:
                             seed=self.seed, kernel=kernel)
         model.to(self.device)
 
-        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 1000)
+        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 500)
 
         epoch_start = 0
 
         val_inner_loss = 1e10
-
-        kl_loss = nn.KLDivLoss(reduction="batchmean", log_target=True)
 
         for epoch in range(epoch_start, self.num_epochs, 1):
 
