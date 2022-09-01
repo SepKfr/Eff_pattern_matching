@@ -297,12 +297,16 @@ class Train:
             output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
-                forecast = torch.from_numpy(extract_numerical_data(p).to_numpy().astype('int')).to(self.device)
+                if self.exp_name == "covid":
+                    tp = 'int'
+                else:
+                    tp = 'float'
+                forecast = torch.from_numpy(extract_numerical_data(p).to_numpy().astype(tp)).to(self.device)
 
                 predictions[j, :forecast.shape[0], :] = forecast
 
                 targets = torch.from_numpy(extract_numerical_data(
-                    self.formatter.format_predictions(output_map["targets"])).to_numpy().astype('int')).to(self.device)
+                    self.formatter.format_predictions(output_map["targets"])).to_numpy().astype(tp)).to(self.device)
 
                 targets_all[j, :targets.shape[0], :] = targets
 
