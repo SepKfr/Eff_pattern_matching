@@ -249,14 +249,16 @@ class Train:
 
                     output_f, output_b = model(self.train.enc[batch_id], self.train.dec[batch_id])
                     loss_f = self.criterion(output_f, self.train.y_true[batch_id]) + self.mae_loss(output_f, self.train.y_true[batch_id])
+                    loss_b = self.criterion(output_b, self.train.y_true[batch_id]) + self.mae_loss(output_b, self.train.y_true[batch_id])
                     output_f = torch.log_softmax(output_f, dim=1)
                     output_b = torch.log_softmax(output_b, dim=1)
-                    loss = loss_f + kl_loss(output_f, output_b)
+                    loss = loss_f + loss_b + kl_loss(output_f, output_b)
+                    total_loss += loss_f.item()
                 else:
                     output = model(self.train.enc[batch_id], self.train.dec[batch_id])
                     loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
+                    total_loss += loss.item()
 
-                total_loss += loss.item()
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step_and_update_lr()
@@ -269,14 +271,11 @@ class Train:
                 if "KittyCat" in self.attn_type:
                     output_f, output_b = model(self.valid.enc[j], self.valid.dec[j])
                     loss_f = self.criterion(output_f, self.valid.y_true[j]) + self.mae_loss(output_f, self.valid.y_true[j])
-                    output_f = torch.log_softmax(output_f, dim=1)
-                    output_b = torch.log_softmax(output_b, dim=1)
-                    loss = loss_f + kl_loss(output_f, output_b)
+                    test_loss += loss_f.item()
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])
                     loss = self.criterion(self.valid.y_true[j], outputs)
-
-                test_loss += loss.item()
+                    test_loss += loss.item()
 
             print("val loss: {:.4f}".format(test_loss))
 
@@ -356,8 +355,8 @@ class Train:
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='ACAT')
-    parser.add_argument("--name", type=str, default="ACAT")
+    parser.add_argument("--attn_type", type=str, default='KittyCatConv')
+    parser.add_argument("--name", type=str, default="KittyCatConv")
     parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
