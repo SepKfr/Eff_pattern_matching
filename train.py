@@ -212,12 +212,13 @@ class Train:
         n_heads = self.model_params['num_heads']
         stack_size = self.model_params['stack_size'][0]
         kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
+        kernel = trial.suggest_categorical("kernel", kernel)
 
-        if d_model in self.param_history or self.n_distinct_trial > 4:
+        if [d_model, kernel] in self.param_history or self.n_distinct_trial > 4:
             raise optuna.exceptions.TrialPruned()
         else:
             self.n_distinct_trial += 1
-        self.param_history.append(d_model)
+        self.param_history.append([d_model, kernel])
 
         d_k = int(d_model / n_heads)
 
