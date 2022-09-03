@@ -196,7 +196,7 @@ class Train:
 
         d_model = trial.suggest_categorical("d_model", [16, 32])
         n_heads = self.model_params['num_heads']
-        stack_size = 3
+        stack_size = 1
         kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
         kernel = trial.suggest_categorical("kernel", kernel)
 
