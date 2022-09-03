@@ -383,7 +383,7 @@ class KittyCatConv(nn.Module):
                  torch.arange(h)[None, :, None, None],
                  torch.arange(l)[None, None, :, None], index] = scores
 
-        attn = torch.softmax(scores, -1)
+        attn = torch.softmax(scores_f, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
 
