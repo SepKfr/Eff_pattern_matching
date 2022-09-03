@@ -1,11 +1,17 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import random
 
 
 class ProbAttention(nn.Module):
-    def __init__(self, mask_flag=True, factor=5, scale=None, attention_dropout=0.1, output_attention=False):
+    def __init__(self, mask_flag, seed, factor=5, scale=None, attention_dropout=0.1, output_attention=False):
         super(ProbAttention, self).__init__()
+
+        torch.manual_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+
         self.factor = factor
         self.scale = scale
         self.mask_flag = mask_flag

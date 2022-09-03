@@ -3,13 +3,13 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 import random
-from ACAT import ACAT
-from BasicAttn import BasicAttn
-from ConvAttn import ConvAttn
-from Autoformer import AutoCorrelation
-from Informer import ProbAttention
-from KittyCat import KittyCatConv
-from LogTrans import LogTrans
+from models.ACAT import ACAT
+from models.BasicAttn import BasicAttn
+from models.ConvAttn import ConvAttn
+from models.Autoformer import AutoCorrelation
+from models.Informer import ProbAttention
+from models.KittyCat import KittyCatConv
+from models.LogTrans import LogTrans
 
 torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
@@ -41,7 +41,7 @@ class PositionalEncoding(nn.Module):
 
 class MultiHeadAttention(nn.Module):
 
-    def __init__(self, d_model, d_k, d_v, n_heads, device, attn_type, kernel):
+    def __init__(self, d_model, d_k, d_v, n_heads, device, attn_type, kernel, seed):
 
         super(MultiHeadAttention, self).__init__()
 
@@ -58,6 +58,7 @@ class MultiHeadAttention(nn.Module):
         self.n_heads = n_heads
         self.attn_type = attn_type
         self.kernel = kernel
+        self.seed = seed
 
     def forward(self, Q, K, V, attn_mask):
 
@@ -69,23 +70,23 @@ class MultiHeadAttention(nn.Module):
         if attn_mask is not None:
             attn_mask = attn_mask.unsqueeze(1).repeat(1, self.n_heads, 1, 1)
         if self.attn_type == "ACAT":
-            context,  attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
+            context,  attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2], seed=self.seed)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif "KittyCat" in self.attn_type:
-            context,  attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2])(
+                context,  attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2], seed=self.seed)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "basic_attn":
-            context, attn = BasicAttn(d_k=self.d_k, device=self.device)(
+            context, attn = BasicAttn(d_k=self.d_k, device=self.device, seed=self.seed)(
             Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "LogTrans":
-            context,  attn = LogTrans(d_k=self.d_k, device=self.device)(
+            context,  attn = LogTrans(d_k=self.d_k, device=self.device, seed=self.seed)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "conv_attn":
-            context,  attn = ConvAttn(d_k=self.d_k, device=self.device, kernel=self.kernel, h=self.n_heads)(
+            context,  attn = ConvAttn(d_k=self.d_k, device=self.device, kernel=self.kernel, h=self.n_heads, seed=self.seed)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "informer":
             mask_flag = True if attn_mask is not None else False
-            context,  attn = ProbAttention(mask_flag=mask_flag)(q_s, k_s, v_s, attn_mask)
+            context,  attn = ProbAttention(mask_flag=mask_flag, seed=self.seed)(q_s, k_s, v_s, attn_mask)
         else:
             context, attn = AutoCorrelation()(q_s.transpose(1, 2), k_s.transpose(1, 2), v_s.transpose(1, 2), attn_mask)
         context = context.transpose(1, 2).contiguous().view(batch_size, -1, self.n_heads * self.d_v)
@@ -108,12 +109,12 @@ class PoswiseFeedForwardNet(nn.Module):
 class EncoderLayer(nn.Module):
 
     def __init__(self, d_model, d_ff, d_k, d_v, n_heads,
-                 device, attn_type, kernel):
+                 device, attn_type, kernel, seed):
         super(EncoderLayer, self).__init__()
         self.enc_self_attn = MultiHeadAttention(
             d_model=d_model, d_k=d_k,
             d_v=d_v, n_heads=n_heads, device=device,
-            attn_type=attn_type, kernel=kernel)
+            attn_type=attn_type, kernel=kernel, seed=seed)
         self.pos_ffn = PoswiseFeedForwardNet(
             d_model=d_model, d_ff=d_ff)
         self.layer_norm = nn.LayerNorm(d_model, elementwise_affine=False)
@@ -131,7 +132,7 @@ class Encoder(nn.Module):
 
     def __init__(self, d_model, d_ff, d_k, d_v, n_heads,
                  n_layers, pad_index, device,
-                 attn_type, kernel):
+                 attn_type, kernel, seed):
         super(Encoder, self).__init__()
         self.device = device
         self.pad_index = pad_index
@@ -146,7 +147,7 @@ class Encoder(nn.Module):
                 d_model=d_model, d_ff=d_ff,
                 d_k=d_k, d_v=d_v, n_heads=n_heads,
                 device=device,
-                attn_type=attn_type, kernel=kernel)
+                attn_type=attn_type, kernel=kernel, seed=seed)
             self.layers.append(encoder_layer)
         self.layers = nn.ModuleList(self.layers)
 
@@ -169,16 +170,16 @@ class Encoder(nn.Module):
 class DecoderLayer(nn.Module):
 
     def __init__(self, d_model, d_ff, d_k, d_v,
-                 n_heads, device, attn_type, kernel):
+                 n_heads, device, attn_type, kernel, seed):
         super(DecoderLayer, self).__init__()
         self.dec_self_attn = MultiHeadAttention(
             d_model=d_model, d_k=d_k,
             d_v=d_v, n_heads=n_heads, device=device,
-            attn_type=attn_type, kernel=kernel)
+            attn_type=attn_type, kernel=kernel, seed=seed)
         self.dec_enc_attn = MultiHeadAttention(
             d_model=d_model, d_k=d_k,
             d_v=d_v, n_heads=n_heads, device=device,
-            attn_type=attn_type, kernel=kernel)
+            attn_type=attn_type, kernel=kernel, seed=seed)
         self.pos_ffn = PoswiseFeedForwardNet(
             d_model=d_model, d_ff=d_ff)
         self.layer_norm = nn.LayerNorm(d_model, elementwise_affine=False)
@@ -198,7 +199,7 @@ class Decoder(nn.Module):
 
     def __init__(self, d_model, d_ff, d_k, d_v,
                  n_heads, n_layers, pad_index, device,
-                 attn_type, kernel):
+                 attn_type, kernel, seed):
         super(Decoder, self).__init__()
         self.pad_index = pad_index
         self.device = device
@@ -213,7 +214,7 @@ class Decoder(nn.Module):
                 d_model=d_model, d_ff=d_ff,
                 d_k=d_k, d_v=d_v,
                 n_heads=n_heads, device=device,
-                attn_type=attn_type, kernel=kernel)
+                attn_type=attn_type, kernel=kernel, seed=seed)
             self.layers.append(decoder_layer)
         self.layers = nn.ModuleList(self.layers)
         self.d_k = d_k
@@ -260,13 +261,13 @@ class Transformer(nn.Module):
             d_model=d_model, d_ff=d_ff,
             d_k=d_k, d_v=d_v, n_heads=n_heads,
             n_layers=n_layers, pad_index=src_pad_index,
-            device=device, attn_type=attn_type, kernel=kernel)
+            device=device, attn_type=attn_type, kernel=kernel, seed=seed)
         self.decoder = Decoder(
             d_model=d_model, d_ff=d_ff,
             d_k=d_k, d_v=d_v, n_heads=n_heads,
             n_layers=1, pad_index=tgt_pad_index,
             device=device,
-            attn_type=attn_type, kernel=kernel)
+            attn_type=attn_type, kernel=kernel, seed=seed)
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)

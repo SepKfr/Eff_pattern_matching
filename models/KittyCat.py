@@ -1,11 +1,18 @@
 import torch
 import torch.nn as nn
+import numpy as np
+import math
+import random
 
 
 class KittyCatConv(nn.Module):
-    def __init__(self, d_k, device, h, l_k, trip=True):
+    def __init__(self, d_k, device, h, l_k, seed):
 
         super(KittyCatConv, self).__init__()
+
+        torch.manual_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)
 
         self.device = device
         self.d_k = d_k
@@ -62,18 +69,18 @@ class KittyCatConv(nn.Module):
         K_proj = K_proj.reshape(b, h, len(self.filter_length), l_k)
         K = torch.mean(K_proj, dim=2)
 
-        K, index = torch.topk(K, self.log_l_k, dim=-1)
+        K, index = torch.topk(K, l_k, dim=-1)
         K = K.unsqueeze(-1)
         K = self.proj_back_k(K)
 
-        index = index.unsqueeze(-2).repeat(1, 1, l, 1)
+        #index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
-        scores_f = torch.zeros(b, h, l, l_k, device=self.device)
+        '''scores_f = torch.zeros(b, h, l, l_k, device=self.device)
         scores_f[torch.arange(b)[:, None, None, None],
                  torch.arange(h)[None, :, None, None],
-                 torch.arange(l)[None, None, :, None], index] = scores
+                 torch.arange(l)[None, None, :, None], index] = scores'''
 
-        attn = torch.softmax(scores_f, -1)
+        attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn

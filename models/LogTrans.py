@@ -1,11 +1,19 @@
+import math
+import random
+import numpy as np
 import torch
 import torch.nn as nn
 
 
 class LogTrans(nn.Module):
-    def __init__(self, d_k, device):
+    def __init__(self, d_k, device, seed):
 
         super(LogTrans, self).__init__()
+
+        torch.manual_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+
         self.device = device
         self.d_k = d_k
 
