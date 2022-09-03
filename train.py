@@ -97,20 +97,6 @@ class Train:
         self.run_optuna(args)
         self.evaluate()
 
-    def get_configs(self):
-
-        if self.attn_type == "conv_attn":
-            kernel = [1, 3, 6, 9]
-        else:
-            kernel = [1]
-
-        hyper_param = list([self.model_params['stack_size'],
-                            [self.model_params['num_heads']],
-                            self.model_params['hidden_layer_size'],
-                            kernel])
-        configs = create_config(hyper_param)
-        return configs
-
     def define_model(self, d_model, n_heads,
                      stack_size, kernel, src_input_size,
                      tgt_input_size):
