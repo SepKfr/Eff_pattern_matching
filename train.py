@@ -194,7 +194,7 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        d_model = trial.suggest_categorical("d_model", [8])
+        d_model = trial.suggest_categorical("d_model", [8, 16])
         stack_size = [1] if self.attn_type == "basic_attn" else [1]
         stack_size = trial.suggest_categorical("stack_size", stack_size)
 
