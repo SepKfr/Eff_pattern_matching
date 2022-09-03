@@ -184,6 +184,7 @@ class Train:
         for epoch in range(epoch_start, self.num_epochs, 1):
 
             total_loss = 0
+            model.train()
             for batch_id in range(n_batches_train):
 
                 output = model(self.train.enc[batch_id], self.train.dec[batch_id])
