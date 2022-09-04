@@ -195,7 +195,7 @@ class Train:
             os.makedirs(self.model_path)
 
         d_model = trial.suggest_categorical("d_model", [8, 16])
-        stack_size = [1] if self.attn_type == "basic_attn" else [1]
+        stack_size = [1, 3] if self.attn_type == "basic_attn" else [1]
         stack_size = trial.suggest_categorical("stack_size", stack_size)
 
         n_heads = self.model_params['num_heads']
@@ -312,7 +312,7 @@ class Train:
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(test_loss)))
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(mae_loss)))
 
-        error_path = "errors_{}_{}_f.json".format(self.exp_name, self.pred_len)
+        error_path = "errors_{}_{}.json".format(self.exp_name, self.pred_len)
 
         if os.path.exists(error_path):
             with open(error_path) as json_file:
