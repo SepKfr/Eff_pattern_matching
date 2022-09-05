@@ -193,7 +193,7 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        d_model = trial.suggest_categorical("d_model", [16, 64])
+        d_model = trial.suggest_categorical("d_model", [8, 64])
         stack_size = [1, 3] if self.attn_type == "basic_attn" else [1]
         stack_size = trial.suggest_categorical("stack_size", stack_size)
 
@@ -331,10 +331,10 @@ def main():
     parser = argparse.ArgumentParser(description="preprocess argument parser")
     parser.add_argument("--attn_type", type=str, default='basic_attn')
     parser.add_argument("--name", type=str, default="basic_attn")
-    parser.add_argument("--exp_name", type=str, default='traffic')
+    parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
-    parser.add_argument("--n_trials", type=int, default=5)
+    parser.add_argument("--n_trials", type=int, default=100)
     parser.add_argument("--DataParallel", type=bool, default=False)
     args = parser.parse_args()
 
