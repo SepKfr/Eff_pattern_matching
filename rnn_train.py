@@ -156,7 +156,7 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        d_model = trial.suggest_categorical("d_model", [16, 32])
+        d_model = trial.suggest_categorical("d_model", [8, 16])
         stack_size = self.model_params['stack_size'][0]
 
         if d_model in self.param_history or self.n_distinct_trial > 4:
