@@ -194,7 +194,7 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        d_model = trial.suggest_categorical("d_model", [8, 16])
+        d_model = trial.suggest_categorical("d_model", [16, 64])
         stack_size = [1, 3] if self.attn_type == "basic_attn" else [1]
         stack_size = trial.suggest_categorical("stack_size", stack_size)
 
@@ -223,7 +223,7 @@ class Train:
                             seed=self.seed, kernel=kernel)
         model.to(self.device)
 
-        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 1000)
+        optimizer = Adam(model.parameters())
 
         epoch_start = 0
 
@@ -241,7 +241,7 @@ class Train:
 
                 optimizer.zero_grad()
                 loss.backward()
-                optimizer.step_and_update_lr()
+                optimizer.step()
 
             print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
@@ -312,7 +312,7 @@ class Train:
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(test_loss)))
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(mae_loss)))
 
-        error_path = "errors_{}_{}.json".format(self.exp_name, self.pred_len)
+        error_path = "errors_{}_{}_new.json".format(self.exp_name, self.pred_len)
 
         if os.path.exists(error_path):
             with open(error_path) as json_file:

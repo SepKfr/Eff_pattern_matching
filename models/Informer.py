@@ -5,7 +5,7 @@ import random
 
 
 class ProbAttention(nn.Module):
-    def __init__(self, mask_flag, seed, factor=1, scale=None, attention_dropout=0, output_attention=False):
+    def __init__(self, mask_flag, seed, factor=5, scale=None, attention_dropout=0.1, output_attention=False):
         super(ProbAttention, self).__init__()
 
         torch.manual_seed(seed)
@@ -70,6 +70,7 @@ class ProbAttention(nn.Module):
             return (context_in, None)
 
     def forward(self, queries, keys, values, attn_mask):
+
         B, H, L_Q, D = queries.shape
         _, _, L_K, _ = keys.shape
 

@@ -73,8 +73,8 @@ class MultiHeadAttention(nn.Module):
             context,  attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2], seed=self.seed)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif "KittyCat" in self.attn_type:
-                context,  attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2], seed=self.seed)(
-                Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
+            context,  attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2], seed=self.seed)(
+            Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "basic_attn":
             context, attn = BasicAttn(d_k=self.d_k, device=self.device, seed=self.seed)(
             Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
@@ -86,7 +86,7 @@ class MultiHeadAttention(nn.Module):
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
         elif self.attn_type == "informer":
             mask_flag = True if attn_mask is not None else False
-            context,  attn = ProbAttention(mask_flag=mask_flag, seed=self.seed)(q_s, k_s, v_s, attn_mask)
+            context, attn = ProbAttention(mask_flag=mask_flag, seed=self.seed)(q_s, k_s, v_s, attn_mask)
         else:
             context, attn = AutoCorrelation()(q_s.transpose(1, 2), k_s.transpose(1, 2), v_s.transpose(1, 2), attn_mask)
         context = context.transpose(1, 2).contiguous().view(batch_size, -1, self.n_heads * self.d_v)
