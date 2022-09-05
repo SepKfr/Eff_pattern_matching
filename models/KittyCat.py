@@ -52,10 +52,9 @@ class KittyCatConv(nn.Module):
         K = K.reshape(b, h * d_k, l_k)
 
         for i in range(len(self.filter_length)):
-            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
-            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
-            Q_l.append(Q)
-            K_l.append(K)
+
+            Q_l.append(self.activation(self.norm_conv(self.conv_list_q[i](Q))))
+            K_l.append(self.activation(self.norm_conv(self.conv_list_k[i](K))))
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l * len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k * len(self.filter_length), -1)
