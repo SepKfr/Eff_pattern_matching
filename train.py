@@ -89,7 +89,6 @@ class Train:
         self.num_epochs = self.params['num_epochs']
         self.name = args.name
         self.param_history = []
-        self.n_distinct_trial = 0
         self.erros = dict()
         self.exp_name = args.exp_name
         self.best_model = nn.Module()
@@ -205,8 +204,6 @@ class Train:
 
         if [d_model, kernel, stack_size] in self.param_history:
             raise optuna.exceptions.TrialPruned()
-        else:
-            self.n_distinct_trial += 1
         self.param_history.append([d_model, kernel, stack_size])
 
         d_k = int(d_model / n_heads)
