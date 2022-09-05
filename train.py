@@ -203,7 +203,7 @@ class Train:
         kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
         kernel = trial.suggest_categorical("kernel", kernel)
 
-        if [d_model, kernel, stack_size] in self.param_history or self.n_distinct_trial > 4:
+        if [d_model, kernel, stack_size] in self.param_history:
             raise optuna.exceptions.TrialPruned()
         else:
             self.n_distinct_trial += 1
