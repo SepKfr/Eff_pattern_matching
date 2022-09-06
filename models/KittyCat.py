@@ -22,7 +22,7 @@ class KittyCatConv(nn.Module):
             nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2)) for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            nn.Conv1d(in_channels=h * d_k, out_channels=h * d_k, kernel_size=f, padding=int((f - 1) / 2)) for f in
+            nn.Conv1d(in_channels=h * d_k, out_channels=h * d_k, kernel_size=f, padding=int((f-1)/2)) for f in
             self.filter_length]
         ).to(device)
 
@@ -52,7 +52,8 @@ class KittyCatConv(nn.Module):
         K = K.reshape(b, h * d_k, l_k)
 
         for i in range(len(self.filter_length)):
-
+            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
+            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
             Q_l.append(self.activation(self.norm_conv(self.conv_list_q[i](Q))))
             K_l.append(self.activation(self.norm_conv(self.conv_list_k[i](K))))
 
