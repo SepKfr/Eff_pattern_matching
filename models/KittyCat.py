@@ -19,11 +19,12 @@ class KittyCatConv(nn.Module):
         self.log_l_k = int(math.log2(l_k))
         self.filter_length = [1, 3, 9]
         self.conv_list_k = nn.ModuleList([
-            nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2)) for f in self.filter_length]
+            nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2))
+            for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2)) for f in
-            self.filter_length]
+            nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2))
+            for f in self.filter_length]
         ).to(device)
 
         self.proj_q = nn.Linear(self.d_k, 1, bias=False).to(device)
