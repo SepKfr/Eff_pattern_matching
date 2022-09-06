@@ -17,23 +17,21 @@ class KittyCatConv(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [1, 3, 9]
+        self.filter_length = [1, 3, 7, 9]
+
         self.conv_list_k = nn.ModuleList([
-            nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2))
+            nn.Conv1d(in_channels=h*d_k, out_channels=h, kernel_size=f, padding=int((f-1)/2))
             for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            nn.Conv1d(in_channels=h*d_k, out_channels=h*d_k, kernel_size=f, padding=int((f-1)/2))
+            nn.Conv1d(in_channels=h*d_k, out_channels=h, kernel_size=f, padding=int((f-1)/2))
             for f in self.filter_length]
         ).to(device)
-
-        self.proj_q = nn.Linear(self.d_k, 1, bias=False).to(device)
-        self.proj_k = nn.Linear(self.d_k, 1, bias=False).to(device)
 
         self.proj_back_q = nn.Linear(1, self.d_k, bias=False).to(device)
         self.proj_back_k = nn.Linear(1, self.d_k, bias=False).to(device)
 
-        self.norm_conv = nn.BatchNorm1d(h*d_k).to(device)
+        self.norm_conv = nn.BatchNorm1d(h).to(device)
         self.activation = nn.ELU().to(device)
 
         for m in self.modules():
@@ -54,21 +52,16 @@ class KittyCatConv(nn.Module):
 
         for i in range(len(self.filter_length)):
 
-            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
-            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
             Q_l.append(self.activation(self.norm_conv(self.conv_list_q[i](Q))))
             K_l.append(self.activation(self.norm_conv(self.conv_list_k[i](K))))
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l * len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k * len(self.filter_length), -1)
 
-        Q_proj = self.proj_q(Q_p)
-        K_proj = self.proj_k(K_p)
-
-        Q = torch.topk(Q_proj, l, dim=2)[0]
+        Q = torch.topk(Q_p, l, dim=2)[0]
         Q = self.proj_back_q(Q)
 
-        K_proj = K_proj.reshape(b, h, len(self.filter_length), l_k)
+        K_proj = K_p.reshape(b, h, len(self.filter_length), l_k)
         K = torch.mean(K_proj, dim=2)
 
         K, index = torch.topk(K, l_k, dim=-1)
