@@ -16,15 +16,17 @@ class KittyCatConv(nn.Module):
 
         self.device = device
         self.d_k = d_k
-        self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [3, 9, 15]
+        self.filter_length = [1, 3, 7, 9]
+
+        self.proj_q = nn.Linear(h*d_k, h, bias=False, device=device)
+        self.proj_k = nn.Linear(h*d_k, h, bias=False, device=device)
 
         self.conv_list_k = nn.ModuleList([
-            nn.Conv1d(in_channels=h*d_k, out_channels=h, kernel_size=f, padding=int((f-1)/2))
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2))
             for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            nn.Conv1d(in_channels=h*d_k, out_channels=h, kernel_size=f, padding=int((f-1)/2))
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2))
             for f in self.filter_length]
         ).to(device)
 
@@ -50,10 +52,15 @@ class KittyCatConv(nn.Module):
         Q = Q.reshape(b, h * d_k, l)
         K = K.reshape(b, h * d_k, l_k)
 
+        Q = self.proj_q(Q.permute(0, 2, 1)).permute(0, 2, 1)
+        K = self.proj_k(K.permute(0, 2, 1)).permute(0, 2, 1)
+
         for i in range(len(self.filter_length)):
 
-            Q_l.append(self.activation(self.norm_conv(self.conv_list_q[i](Q))))
-            K_l.append(self.activation(self.norm_conv(self.conv_list_k[i](K))))
+            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
+            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
+            Q_l.append(Q)
+            K_l.append(K)
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l * len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k * len(self.filter_length), -1)
