@@ -18,8 +18,8 @@ class KittyCatConv(nn.Module):
         self.d_k = d_k
         self.filter_length = [1, 3, 7, 9]
 
-        self.proj_q = nn.Linear(h*d_k, h, bias=False, device=device)
-        self.proj_k = nn.Linear(h*d_k, h, bias=False, device=device)
+        self.proj_q = nn.Linear(d_k, 1, bias=False, device=device)
+        self.proj_k = nn.Linear(d_k, 1, bias=False, device=device)
 
         self.conv_list_k = nn.ModuleList([
             nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2))
@@ -49,11 +49,11 @@ class KittyCatConv(nn.Module):
         Q_l = []
         K_l = []
 
-        Q = Q.reshape(b, h * d_k, l)
-        K = K.reshape(b, h * d_k, l_k)
+        Q = self.proj_q(Q)
+        K = self.proj_q(K)
 
-        Q = self.proj_q(Q.permute(0, 2, 1)).permute(0, 2, 1)
-        K = self.proj_k(K.permute(0, 2, 1)).permute(0, 2, 1)
+        Q = Q.reshape(b, -1, l)
+        K = K.reshape(b, -1, l_k)
 
         for i in range(len(self.filter_length)):
 
