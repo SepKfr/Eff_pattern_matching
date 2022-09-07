@@ -17,7 +17,7 @@ class KittyCatConv(nn.Module):
         self.device = device
         self.d_k = d_k
         self.log_l_k = int(math.log2(l_k))
-        self.filter_length = [1, 3, 7, 9]
+        self.filter_length = [3, 9, 15]
 
         self.conv_list_k = nn.ModuleList([
             nn.Conv1d(in_channels=h*d_k, out_channels=h, kernel_size=f, padding=int((f-1)/2))
@@ -68,14 +68,14 @@ class KittyCatConv(nn.Module):
         K = K.unsqueeze(-1)
         K = self.proj_back_k(K)
 
-        index = index.unsqueeze(-2).repeat(1, 1, l, 1)
+        #index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
-        scores_f = torch.zeros(b, h, l, l_k, device=self.device)
+        '''scores_f = torch.zeros(b, h, l, l_k, device=self.device)
         scores_f[torch.arange(b)[:, None, None, None],
                  torch.arange(h)[None, :, None, None],
-                 torch.arange(l)[None, None, :, None], index] = scores
+                 torch.arange(l)[None, None, :, None], index] = scores'''
 
-        attn = torch.softmax(scores_f, -1)
+        attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
