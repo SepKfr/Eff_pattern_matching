@@ -434,7 +434,6 @@ def process_covid(args):
         ls_df.append(dff)
 
     df_f = pd.concat(ls_df, axis=0)
-    df_f = df_f.dropna()
 
     df_f.to_csv("covid.csv")
 
