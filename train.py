@@ -328,7 +328,7 @@ class Train:
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='KittyCat')
+    parser.add_argument("--attn_type", type=str, default='informer')
     parser.add_argument("--name", type=str, default="KittyCat")
     parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
