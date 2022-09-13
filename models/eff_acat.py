@@ -61,7 +61,6 @@ class MultiHeadAttention(nn.Module):
         self.seed = seed
 
 
-
     def forward(self, Q, K, V, attn_mask):
 
         batch_size = Q.shape[0]
