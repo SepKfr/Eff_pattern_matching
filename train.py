@@ -133,24 +133,22 @@ class Train:
         data = self.formatter.transform_data(self.data)
 
         train_max, valid_max = self.formatter.get_num_samples_for_calibration()
-        total_num = train_max + 2 * valid_max
-        train_b = int(total_num * 0.8)
-        valid_len = int((total_num - train_b) / 2)
+        train_b = int(len(data) * 0.8)
+        valid_b = int((len(data) - train_b) / 2)
 
-        data_sample = self.sample_data(total_num, data)
+        train = data.iloc[:train_b].copy()
+        valid = data.iloc[train_b:-valid_b].copy()
+        test = data.iloc[-valid_b:].copy()
 
-        trn_batching = batching(self.batch_size, data_sample.enc[:train_b, :, :], data_sample.dec[:train_b, :, :],
-                                data_sample.y_true[:train_b, :, :], data_sample.y_id[:train_b, :, :])
+        train = self.sample_data(train_max, train)
+        valid = self.sample_data(valid_max, valid)
+        test = self.sample_data(valid_max, test)
 
-        valid_batching = batching(self.batch_size, data_sample.enc[train_b:train_b + valid_len, :, :],
-                                  data_sample.dec[train_b:train_b + valid_len, :, :],
-                                  data_sample.y_true[train_b:train_b + valid_len, :, :],
-                                  data_sample.y_id[train_b:train_b + valid_len, :, :])
+        trn_batching = batching(self.batch_size, train.enc, train.dec, train.y_true, train.y_id)
 
-        test_batching = batching(self.batch_size, data_sample.enc[-valid_len:, :, :],
-                                 data_sample.dec[-valid_len:, :, :],
-                                 data_sample.y_true[-valid_len:, :, :],
-                                 data_sample.y_id[-valid_len:, :, :])
+        valid_batching = batching(self.batch_size, valid.enc, valid.dec, valid.y_true, valid.y_id)
+
+        test_batching = batching(self.batch_size, test.enc, test.dec, test.y_true, test.y_id)
 
         trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3], self.device)
         valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3], self.device)
@@ -328,7 +326,7 @@ class Train:
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='informer')
+    parser.add_argument("--attn_type", type=str, default='KittyCat')
     parser.add_argument("--name", type=str, default="KittyCat")
     parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")

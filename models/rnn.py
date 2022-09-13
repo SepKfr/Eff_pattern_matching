@@ -10,13 +10,11 @@ class RNN(nn.Module):
                  rnn_type, device, d_r, seed):
 
         super(RNN, self).__init__()
-        self.enc_lstm = nn.LSTM(hidden_size, hidden_size, n_layers, dropout=d_r)
-        self.dec_lstm = nn.LSTM(hidden_size, hidden_size, n_layers, dropout=d_r)
+        self.enc_lstm = nn.LSTM(src_input_size, hidden_size, n_layers, dropout=d_r)
+        self.dec_lstm = nn.LSTM(src_input_size, hidden_size, n_layers, dropout=d_r)
         self.n_layers = n_layers
         self.hidden_size = hidden_size
         self.rnn_type = rnn_type
-        self.linear_enc = nn.Linear(src_input_size, hidden_size, bias=False)
-        self.linear_dec = nn.Linear(tgt_input_size, hidden_size, bias=False)
         self.linear2 = nn.Linear(hidden_size, 1, bias=False)
         self.hidden = None
         self.device = device
@@ -26,8 +24,8 @@ class RNN(nn.Module):
 
     def forward(self, x_en, x_de):
 
-        x_en = self.linear_enc(x_en).permute(1, 0, 2)
-        x_de = self.linear_dec(x_de).permute(1, 0, 2)
+        x_en = x_en.permute(1, 0, 2)
+        x_de = x_de.permute(1, 0, 2)
 
         if self.hidden is None:
             self.hidden = torch.zeros(self.n_layers, x_en.shape[1], self.hidden_size).to(self.device)
