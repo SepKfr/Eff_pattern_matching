@@ -133,7 +133,7 @@ class Train:
         data = self.formatter.transform_data(self.data)
 
         train_max, valid_max = self.formatter.get_num_samples_for_calibration()
-        train_b = int(len(data) * 0.8)
+        train_b = int(len(data) * 0.6)
         valid_b = int((len(data) - train_b) / 2)
 
         train = data.iloc[:train_b].copy()
