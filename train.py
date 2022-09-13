@@ -306,7 +306,7 @@ class Train:
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(test_loss)))
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(mae_loss)))
 
-        error_path = "EErrors_{}_{}.json".format(self.exp_name, self.pred_len)
+        error_path = "new_errors_{}_{}.json".format(self.exp_name, self.pred_len)
 
         if os.path.exists(error_path):
             with open(error_path) as json_file:
