@@ -33,6 +33,13 @@ class KittyCatConv(nn.Module):
         self.proj_back_q = nn.Linear(1, self.d_k, bias=False).to(device)
         self.proj_back_k = nn.Linear(1, self.d_k, bias=False).to(device)
 
+        self.norm_conv = nn.BatchNorm1d(h).to(device)
+        self.activation = nn.ELU().to(device)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
+
         self.factor = 1
 
     def forward(self, Q, K, V, attn_mask):
@@ -50,8 +57,8 @@ class KittyCatConv(nn.Module):
 
         for i in range(len(self.filter_length)):
 
-            Q = self.conv_list_q[i](Q)
-            K = self.conv_list_k[i](K)
+            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
+            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
             Q_l.append(Q)
             K_l.append(K)
 
@@ -64,18 +71,20 @@ class KittyCatConv(nn.Module):
         K_proj = K_p.reshape(b, h, len(self.filter_length), l_k)
         K = torch.mean(K_proj, dim=2)
 
-        K, index = torch.topk(K, l_k, dim=-1)
+        lg_l_k = math.ceil(math.log2(l_k))
+
+        K, index = torch.topk(K, lg_l_k, dim=-1)
         K = K.unsqueeze(-1)
         K = self.proj_back_k(K)
 
-        #index = index.unsqueeze(-2).repeat(1, 1, l, 1)
+        index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
-        '''scores_f = torch.zeros(b, h, l, l_k, device=self.device)
+        scores_f = torch.zeros(b, h, l, l_k, device=self.device)
         scores_f[torch.arange(b)[:, None, None, None],
                  torch.arange(h)[None, :, None, None],
-                 torch.arange(l)[None, None, :, None], index] = scores'''
+                 torch.arange(l)[None, None, :, None], index] = scores
 
-        attn = torch.softmax(scores, -1)
+        attn = torch.softmax(scores_f, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
