@@ -54,8 +54,7 @@ class NoamOpt:
 
 class ModelData:
 
-    def __init__(self, enc, dec, y_true, y_id, device):
-        self.enc = enc.to(device)
+    def __init__(self, dec, y_true, y_id, device):
         self.dec = dec.to(device)
         self.y_true = y_true.to(device)
         self.y_id = y_id
@@ -67,16 +66,17 @@ class Train:
         config = ExperimentConfig(pred_len, args.exp_name)
         self.data = data
         self.len_data = len(data)
-        self.formatter = config.make_data_formatter()
-        self.params = self.formatter.get_experiment_params()
+        self.train_formatter = config.make_data_formatter()
+        self.valid_formatter = config.make_data_formatter()
+        self.test_formatter = config.make_data_formatter()
+        self.params = self.test_formatter.get_experiment_params()
         self.total_time_steps = self.params['total_time_steps']
-        self.num_encoder_steps = self.params['num_encoder_steps']
         self.column_definition = self.params["column_definition"]
         self.pred_len = pred_len
         self.seed = args.seed
         self.device = torch.device(args.cuda if torch.cuda.is_available() else "cpu")
         self.model_path = "models_{}_{}".format(args.exp_name, pred_len)
-        self.model_params = self.formatter.get_default_model_params()
+        self.model_params = self.test_formatter.get_default_model_params()
         self.batch_size = self.model_params['minibatch_size'][0]
         self.attn_type = args.attn_type
         self.criterion = nn.MSELoss()
@@ -115,39 +115,39 @@ class Train:
     def sample_data(self, max_samples, data):
 
         sample_data = batch_sampled_data(data, max_samples, self.params['total_time_steps'],
-                               self.params['num_encoder_steps'], self.pred_len, self.params["column_definition"],
-                                         self.seed)
-        sample_data = ModelData(torch.from_numpy(sample_data['enc_inputs']),
-                                                 torch.from_numpy(sample_data['dec_inputs']),
-                                                 torch.from_numpy(sample_data['outputs']),
-                                                 sample_data['identifier'], self.device)
+                                         self.pred_len, self.params["column_definition"])
+
+        sample_data = ModelData(torch.from_numpy(sample_data['dec_inputs']),
+                                torch.from_numpy(sample_data['outputs']),
+                                sample_data['identifier'], self.device)
         return sample_data
 
     def split_data(self):
 
-        data = self.formatter.transform_data(self.data)
+        train, valid, test = self.train_formatter.split_data(self.data)
+        train_max, valid_max = self.train_formatter.get_num_samples_for_calibration()
 
-        train_max, valid_max = self.formatter.get_num_samples_for_calibration()
-        train_b = int(len(data) * 0.6)
-        valid_b = int((len(data) - train_b) / 2)
+        print(len(train))
+        print(len(valid))
+        print(len(test))
 
-        train = data.iloc[:train_b].copy()
-        valid = data.iloc[train_b:-valid_b].copy()
-        test = data.iloc[-valid_b:].copy()
+        train = self.train_formatter.transform_data(train)
+        valid = self.valid_formatter.transform_data(valid)
+        test = self.test_formatter.transform_data(test)
 
         train = self.sample_data(train_max, train)
         valid = self.sample_data(valid_max, valid)
         test = self.sample_data(valid_max, test)
 
-        trn_batching = batching(self.batch_size, train.enc, train.dec, train.y_true, train.y_id)
+        trn_batching = batching(self.batch_size, train.dec, train.y_true, train.y_id)
 
-        valid_batching = batching(self.batch_size, valid.enc, valid.dec, valid.y_true, valid.y_id)
+        valid_batching = batching(self.batch_size, valid.dec, valid.y_true, valid.y_id)
 
-        test_batching = batching(self.batch_size, test.enc, test.dec, test.y_true, test.y_id)
+        test_batching = batching(self.batch_size,  test.dec, test.y_true, test.y_id)
 
-        trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3], self.device)
-        valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3], self.device)
-        test = ModelData(test_batching[0], test_batching[1], test_batching[2], test_batching[3], self.device)
+        trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], self.device)
+        valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], self.device)
+        test = ModelData(test_batching[0], test_batching[1], test_batching[2], self.device)
 
         return trn, valid, test
 
@@ -178,10 +178,10 @@ class Train:
     def objective(self, trial):
 
         val_loss = 1e10
-        src_input_size = self.train.enc.shape[3]
+        src_input_size = self.train.dec.shape[3]
         tgt_input_size = self.train.dec.shape[3]
-        n_batches_train = self.train.enc.shape[0]
-        n_batches_valid = self.valid.enc.shape[0]
+        n_batches_train = self.train.dec.shape[0]
+        n_batches_valid = self.valid.dec.shape[0]
 
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
@@ -223,7 +223,7 @@ class Train:
             total_loss = 0
             for batch_id in range(n_batches_train):
 
-                output = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                output = model(self.train.dec[batch_id])
                 loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
 
                 total_loss += loss.item()
@@ -238,7 +238,7 @@ class Train:
             test_loss = 0
             for j in range(n_batches_valid):
 
-                outputs = model(self.valid.enc[j], self.valid.dec[j])
+                outputs = model(self.valid.dec[j])
                 loss = self.criterion(outputs, self.valid.y_true[j]) + self.mae_loss(outputs, self.valid.y_true[j])
                 test_loss += loss.item()
 
@@ -266,13 +266,13 @@ class Train:
         self.best_model.eval()
         predictions = torch.zeros(self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2])
         targets_all = torch.zeros(self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2])
-        n_batches_test = self.test.enc.shape[0]
+        n_batches_test = self.test.dec.shape[0]
 
         for j in range(n_batches_test):
 
-            output = self.best_model(self.test.enc[j], self.test.dec[j])
+            output = self.best_model(self.test.dec[j])
             output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
-            p = self.formatter.format_predictions(output_map["predictions"])
+            p = self.test_formatter.format_predictions(output_map["predictions"])
             if p is not None:
                 if self.exp_name == "covid":
                     tp = 'int'
@@ -283,7 +283,7 @@ class Train:
                 predictions[j, :forecast.shape[0], :] = forecast
 
                 targets = torch.from_numpy(extract_numerical_data(
-                    self.formatter.format_predictions(output_map["targets"])).to_numpy().astype(tp)).to(self.device)
+                    self.test_formatter.format_predictions(output_map["targets"])).to_numpy().astype(tp)).to(self.device)
 
                 targets_all[j, :targets.shape[0], :] = targets
 
@@ -323,7 +323,7 @@ def main():
     parser = argparse.ArgumentParser(description="preprocess argument parser")
     parser.add_argument("--attn_type", type=str, default='KittyCat')
     parser.add_argument("--name", type=str, default="KittyCat")
-    parser.add_argument("--exp_name", type=str, default='covid')
+    parser.add_argument("--exp_name", type=str, default='traffic')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--n_trials", type=int, default=100)
@@ -337,8 +337,9 @@ def main():
 
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
+    raw_data = raw_data.dropna()
 
-    for pred_len in [24, 48, 72]:
+    for pred_len in [24, 48, 72, 96]:
         Train(raw_data, args, pred_len)
 
 

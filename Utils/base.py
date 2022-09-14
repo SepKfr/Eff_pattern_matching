@@ -133,7 +133,7 @@ class GenericDataFormatter(abc.ABC):
         """Returns fixed model parameters for experiments."""
 
         required_keys = [
-           'num_encoder_steps'
+           'total_time_steps'
         ]
 
         fixed_params = self.get_fixed_params()

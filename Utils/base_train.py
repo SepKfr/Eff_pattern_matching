@@ -24,28 +24,25 @@ import random
 InputTypes = base.InputTypes
 
 
-def batching(batch_size, x_en, x_de, y_t, test_id):
+def batching(batch_size, x_de, y_t, test_id):
 
-    batch_n = int(x_en.shape[0] / batch_size)
+    batch_n = int(x_de.shape[0] / batch_size)
     start = 0
-    X_en = torch.zeros(batch_n, batch_size, x_en.shape[1], x_en.shape[2])
     X_de = torch.zeros(batch_n, batch_size, x_de.shape[1], x_de.shape[2])
     Y_t = torch.zeros(batch_n, batch_size, y_t.shape[1], y_t.shape[2])
-    tst_id = np.empty((batch_n, batch_size, test_id.shape[1], x_en.shape[2]), dtype=object)
+    tst_id = np.empty((batch_n, batch_size, test_id.shape[1], x_de.shape[2]), dtype=object)
     i = 0
-    while start+batch_size <= x_en.shape[0]:
-
-        X_en[i, :, :, :] = x_en[start:start+batch_size, :, :]
+    while start+batch_size <= x_de.shape[0]:
         X_de[i, :, :, :] = x_de[start:start+batch_size, :, :]
         Y_t[i, :, :, :] = y_t[start:start+batch_size, :, :]
         tst_id[i, :, :, :] = test_id[start:start+batch_size, :, :]
         start += batch_size
         i += 1
 
-    return X_en, X_de, Y_t, tst_id
+    return X_de, Y_t, tst_id
 
 
-def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, pred_len, column_definition, seed):
+def batch_sampled_data(data, max_samples, time_steps, pred_len, column_definition):
     """Samples segments into a compatible format.
     Args:
       seed:
@@ -105,11 +102,8 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, pred_le
     ]
 
     input_size = len(enc_input_cols)
-    inputs = np.zeros((max_samples, time_steps, input_size))
-    enc_inputs = np.zeros((max_samples, num_encoder_steps, input_size))
-    dec_inputs = np.zeros((max_samples, time_steps - num_encoder_steps - pred_len, input_size))
-    outputs = np.zeros((max_samples, time_steps, 1))
-    time = np.empty((max_samples, time_steps, 1), dtype=object)
+    dec_inputs = np.zeros((max_samples, time_steps - pred_len, input_size))
+    outputs = np.zeros((max_samples, pred_len, 1))
     identifiers = np.empty((max_samples, time_steps, 1), dtype=object)
 
     for i, tup in enumerate(ranges):
@@ -118,20 +112,13 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, pred_le
         identifier, start_idx = tup
         sliced = split_data_map[identifier].iloc[start_idx -
                                                time_steps:start_idx]
-        enc_inputs[i, :, :] = sliced[enc_input_cols].iloc[:num_encoder_steps]
-        dec_inputs[i, :, :] = sliced[enc_input_cols].iloc[num_encoder_steps:-pred_len]
-        inputs[i, :, :] = sliced[enc_input_cols]
-        outputs[i, :, :] = sliced[[target_col]]
-        time[i, :, 0] = sliced[time_col]
+        dec_inputs[i, :, :] = sliced[enc_input_cols].iloc[:-pred_len]
+        outputs[i, :, :] = sliced[[target_col]].iloc[-pred_len:]
         identifiers[i, :, 0] = sliced[id_col]
 
     sampled_data = {
-        'inputs': inputs,
-        'enc_inputs': enc_inputs,
         'dec_inputs': dec_inputs,
-        'outputs': outputs[:, -pred_len:, :],
-        'active_entries': np.ones_like(outputs[:, num_encoder_steps:, :]),
-        'time': time,
+        'outputs': outputs,
         'identifier': identifiers
     }
 

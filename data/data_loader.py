@@ -435,6 +435,8 @@ def process_covid(args):
 
     df_f = pd.concat(ls_df, axis=0)
 
+    df_f = df_f.sort_values(by=['days_from_start'])
+
     df_f.to_csv("covid.csv")
 
     print('Done.')
