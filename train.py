@@ -309,7 +309,6 @@ def main():
     parser.add_argument("--DataParallel", type=bool, default=False)
     args = parser.parse_args()
 
-
     np.random.seed(args.seed)
 
     random.seed(args.seed)
