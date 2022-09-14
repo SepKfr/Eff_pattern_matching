@@ -219,7 +219,7 @@ class Train:
             for x_enc, x_dec, y_true in self.train:
 
                 output = model(x_enc.double(), x_dec.double())
-                loss = self.criterion(output, y_true) + self.mae_loss(output, y_true)
+                loss = self.criterion(output, y_true)
 
                 total_loss += loss.item()
 
@@ -231,13 +231,12 @@ class Train:
 
             model.eval()
             test_loss = 0
-            i = 0
+
             for x_enc, x_dec, y_true in self.valid:
 
                 outputs = model(x_enc, x_dec)
-                loss = self.criterion(outputs, y_true) + self.mae_loss(outputs, y_true)
+                loss = self.criterion(outputs, y_true)
                 test_loss += loss.item()
-                i+= 1
 
             print("val loss: {:.4f}".format(test_loss))
 
