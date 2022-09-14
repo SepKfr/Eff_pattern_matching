@@ -127,10 +127,6 @@ class Train:
         train, valid, test = self.train_formatter.split_data(self.data)
         train_max, valid_max = self.train_formatter.get_num_samples_for_calibration()
 
-        print(len(train))
-        print(len(valid))
-        print(len(test))
-
         train = self.train_formatter.transform_data(train)
         valid = self.valid_formatter.transform_data(valid)
         test = self.test_formatter.transform_data(test)
