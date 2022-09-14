@@ -18,27 +18,20 @@ class KittyCatConv(nn.Module):
         self.d_k = d_k
         self.filter_length = [1, 3, 7, 9]
 
-        self.proj_q = nn.Linear(d_k, 1, bias=False, device=device).double()
-        self.proj_k = nn.Linear(d_k, 1, bias=False, device=device).double()
+        self.proj_q = nn.Linear(d_k, 1, bias=False, device=device)
+        self.proj_k = nn.Linear(d_k, 1, bias=False, device=device)
 
         self.conv_list_k = nn.ModuleList([
-            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2)).double()
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2))
             for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2)).double()
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2))
             for f in self.filter_length]
         ).to(device)
 
-        self.proj_back_q = nn.Linear(1, self.d_k, bias=False).to(device).double()
-        self.proj_back_k = nn.Linear(1, self.d_k, bias=False).to(device).double()
-
-        self.norm_conv = nn.BatchNorm1d(h).to(device).double()
-        self.activation = nn.ELU().to(device).double()
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
+        self.proj_back_q = nn.Linear(1, self.d_k, bias=False).to(device)
+        self.proj_back_k = nn.Linear(1, self.d_k, bias=False).to(device)
 
         self.factor = 1
 
@@ -57,8 +50,8 @@ class KittyCatConv(nn.Module):
 
         for i in range(len(self.filter_length)):
 
-            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
-            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
+            Q = self.conv_list_q[i](Q)
+            K = self.conv_list_k[i](K)
             Q_l.append(Q)
             K_l.append(K)
 

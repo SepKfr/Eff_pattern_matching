@@ -138,7 +138,7 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, pred_le
     return sampled_data
 
 
-def inverse_output(predictions, outputs):
+def inverse_output(predictions, outputs, test_id):
 
     def format_outputs(preds):
         flat_prediction = pd.DataFrame(
@@ -148,6 +148,7 @@ def inverse_output(predictions, outputs):
                 for i in range(preds.shape[1])
             ]
         )
+        flat_prediction['identifier'] = test_id[:, 0, 0]
         return flat_prediction
 
     process_map = {'predictions': format_outputs(predictions.cpu().detach().numpy()),
