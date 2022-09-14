@@ -317,7 +317,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [30]:
+    for pred_len in [10, 20, 30]:
         Train(raw_data, args, pred_len)
 
 
