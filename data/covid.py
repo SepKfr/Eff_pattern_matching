@@ -25,7 +25,7 @@ class CovidFormatter(GenericDataFormatter):
 
         fixed_params = {
             'total_time_steps': 30 * 2 + 2 * 30 + self.pred_len,
-            'num_encoder_steps': 30 * 3,
+            'num_encoder_steps': 30 * 2,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,

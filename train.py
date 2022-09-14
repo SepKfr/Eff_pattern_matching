@@ -191,7 +191,7 @@ class Train:
                             seed=self.seed, kernel=kernel)
         model.to(self.device)
 
-        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 4000)
+        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 500)
 
         epoch_start = 0
 
