@@ -41,10 +41,12 @@ class SolarFormatter(ElectricityFormatter):
 
         index = df['days_from_start']
         train = df.loc[index < valid_boundary]
-        valid = df.loc[(index >= valid_boundary) & (index < test_boundary)]
-        test = df.loc[index >= test_boundary]
+        valid = df.loc[(index >= valid_boundary - 7) & (index < test_boundary)]
+        test = df.loc[index >= test_boundary - 7]
 
-        return train, valid, test
+        self.set_scalers(train)
+
+        return (self.transform_inputs(data) for data in [train, valid, test])
 
     def get_default_model_params(self):
         """Returns default optimised model parameters."""
@@ -63,11 +65,10 @@ class SolarFormatter(ElectricityFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 4 * 24 + self.pred_len,
+            'total_time_steps': 4 * 24 + 4 * 24 + self.pred_len,
+            'num_encoder_steps': 4 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
-            'early_stopping_patience': 5,
-            'multiprocessing_workers': 5
         }
 
         return fixed_params

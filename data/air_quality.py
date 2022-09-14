@@ -41,7 +41,9 @@ class AirQualityFormatter(ElectricityFormatter):
 
         index = df['days_from_start']
         train = df.loc[index < valid_boundary]
-        valid = df.loc[(index >= valid_boundary) & (index < test_boundary)]
-        test = df.loc[index >= test_boundary]
+        valid = df.loc[(index >= valid_boundary - 7) & (index < test_boundary)]
+        test = df.loc[index >= test_boundary - 7]
 
-        return train, valid, test
+        self.set_scalers(train)
+
+        return (self.transform_inputs(data) for data in [train, valid, test])

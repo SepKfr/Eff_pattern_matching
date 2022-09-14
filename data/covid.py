@@ -15,39 +15,17 @@ class CovidFormatter(GenericDataFormatter):
         ('PEOPLE_POSITIVE_NEW_CASES_COUNT', DataTypes.REAL_VALUED, InputTypes.TARGET),
         ('PEOPLE_POSITIVE_CASES_COUNT', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('PEOPLE_DEATH_COUNT', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-        ('Number of Trips', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-        ('Population Staying at Home', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-        ('Population Not Staying at Home', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('days_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
     ]
-
-    def split_data(self, df, valid_boundary=300, test_boundary=500):
-        """Splits data_set frame into training-validation-test data_set frames.
-        This also calibrates scaling object, and transforms data_set for each split.
-        Args:
-          df: Source data_set frame to split.
-          valid_boundary: Starting year for validation data_set
-          test_boundary: Starting year for test data_set
-        Returns:
-          Tuple of transformed (train, valid, test) data_set.
-        """
-
-        print('Formatting train-valid-test splits.')
-
-        index = df['days_from_start']
-        train = df.loc[index < valid_boundary]
-        valid = df.loc[(index >= valid_boundary) & (index < test_boundary)]
-        test = df.loc[index >= test_boundary]
-
-        return train, valid, test
 
     # Default params
     def get_fixed_params(self):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 4 * 24 + self.pred_len,
+            'total_time_steps': 30 * 2 + 2 * 30 + self.pred_len,
+            'num_encoder_steps': 30 * 3,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,

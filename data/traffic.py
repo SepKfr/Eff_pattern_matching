@@ -39,26 +39,6 @@ class TrafficFormatter(GenericDataFormatter):
 
         self.pred_len = pred_len
 
-    def split_data(self, df, valid_boundary=151, test_boundary=166):
-        """Splits data_set frame into training-validation-test data_set frames.
-        This also calibrates scaling object, and transforms data_set for each split.
-        Args:
-          df: Source data_set frame to split.
-          valid_boundary: Starting year for validation data_set
-          test_boundary: Starting year for test data_set
-        Returns:
-          Tuple of transformed (train, valid, test) data_set.
-        """
-
-        print('Formatting train-valid-test splits.')
-
-        index = df['sensor_day']
-        train = df.loc[index < valid_boundary]
-        valid = df.loc[(index >= valid_boundary) & (index < test_boundary)]
-        test = df.loc[index >= test_boundary]
-
-        return train, valid, test
-
     def transform_data(self, df):
         """Splits data_set frame into training-validation-test data_set frames.
         This also calibrates scaling object, and transforms data_set for each split.
@@ -165,16 +145,8 @@ class TrafficFormatter(GenericDataFormatter):
         column_names = predictions.columns
 
         for col in column_names:
-
-            try:
+            if col not in {'identifier'}:
                 output[col] = self._target_scaler.inverse_transform(predictions[col])
-            except ValueError:
-                if len(output[col]) == 1:
-                    pred = output[col].to_numpy().reshape(1, -1)
-                else:
-                    pred = output[col].to_numpy().reshape(-1, 1)
-
-                output[col] = self._target_scaler.inverse_transform(pred)
 
         return output
 
@@ -183,7 +155,9 @@ class TrafficFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 4 * 24 + self.pred_len,
+            'total_time_steps': 4 * 24 + 4 * 24 + self.pred_len,
+            'num_encoder_steps': 4 * 24,
+            'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,
             'multiprocessing_workers': 5

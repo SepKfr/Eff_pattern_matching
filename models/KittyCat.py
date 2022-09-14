@@ -71,8 +71,6 @@ class KittyCatConv(nn.Module):
         K_proj = K_p.reshape(b, h, len(self.filter_length), l_k)
         K = torch.mean(K_proj, dim=2)
 
-        lg_l_k = math.ceil(math.log2(l_k))
-
         K, index = torch.topk(K, l_k, dim=-1)
         K = K.unsqueeze(-1)
         K = self.proj_back_k(K)
