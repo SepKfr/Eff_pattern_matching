@@ -73,18 +73,18 @@ class KittyCatConv(nn.Module):
 
         lg_l_k = math.ceil(math.log2(l_k))
 
-        K, index = torch.topk(K, lg_l_k, dim=-1)
+        K, index = torch.topk(K, l_k, dim=-1)
         K = K.unsqueeze(-1)
         K = self.proj_back_k(K)
 
-        index = index.unsqueeze(-2).repeat(1, 1, l, 1)
+        #index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
 
-        scores_f = torch.zeros(b, h, l, l_k, device=self.device)
+        '''scores_f = torch.zeros(b, h, l, l_k, device=self.device)
         scores_f[torch.arange(b)[:, None, None, None],
                  torch.arange(h)[None, :, None, None],
-                 torch.arange(l)[None, None, :, None], index] = scores
+                 torch.arange(l)[None, None, :, None], index] = scores'''
 
-        attn = torch.softmax(scores_f, -1)
+        attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)
         return context, attn
