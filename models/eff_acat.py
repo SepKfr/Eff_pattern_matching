@@ -266,7 +266,7 @@ class Transformer(nn.Module):
         self.decoder = Decoder(
             d_model=d_model, d_ff=d_ff,
             d_k=d_k, d_v=d_v, n_heads=n_heads,
-            n_layers=1, pad_index=tgt_pad_index,
+            n_layers=n_layers, pad_index=tgt_pad_index,
             device=device,
             attn_type=attn_type, kernel=kernel, seed=seed)
 
@@ -277,12 +277,12 @@ class Transformer(nn.Module):
         self.pred_len = pred_len
         self.device = device
 
-    def forward(self, dec_inputs):
+    def forward(self, enc_inputs, dec_inputs):
 
-        enc_inputs = self.enc_embedding(dec_inputs)
-        #dec_inputs = self.dec_embedding(dec_inputs)
+        enc_inputs = self.enc_embedding(enc_inputs)
+        dec_inputs = self.dec_embedding(dec_inputs)
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
-        #dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
-        dec_logits = self.projection(enc_outputs)
+        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
+        dec_logits = self.projection(dec_outputs)
         outputs = dec_logits[:, -self.pred_len:, :]
         return outputs
