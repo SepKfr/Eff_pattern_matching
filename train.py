@@ -1,3 +1,5 @@
+from scipy.ndimage import gaussian_filter
+
 from models.eff_acat import Transformer
 from torch.optim import Adam
 import torch.nn as nn
@@ -11,7 +13,7 @@ import random
 import pandas as pd
 import math
 import optuna
-import torch.nn.functional as F
+import torchvision
 from optuna.samplers import TPESampler
 from optuna.trial import TrialState
 
@@ -198,14 +200,14 @@ class Train:
         e_stop = 0
 
         val_inner_loss = 1e10
-
         for epoch in range(epoch_start, self.num_epochs, 1):
 
             total_loss = 0
             for batch_id in range(n_batches_train):
 
                 output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
+                smooth_output = torch.from_numpy(gaussian_filter(output.detach().cpu().numpy(), sigma=3)).to(self.device)
+                loss = self.criterion(output, self.train.y_true[batch_id]) + 0.1*(self.criterion(output, smooth_output))
 
                 total_loss += loss.item()
 
@@ -220,7 +222,7 @@ class Train:
             for j in range(n_batches_valid):
 
                 outputs = model(self.valid.enc[j], self.valid.dec[j])
-                loss = self.criterion(outputs, self.valid.y_true[j]) + self.mae_loss(outputs, self.valid.y_true[j])
+                loss = self.criterion(outputs, self.valid.y_true[j])
                 test_loss += loss.item()
 
             print("val loss: {:.4f}".format(test_loss))
