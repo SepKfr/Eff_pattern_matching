@@ -24,8 +24,8 @@ class CovidFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 2 * 24 + 2 * self.pred_len,
-            'num_encoder_steps': 2 * 24,
+            'total_time_steps': 4 * 24 + 2 * self.pred_len,
+            'num_encoder_steps': 4 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,
@@ -54,4 +54,4 @@ class CovidFormatter(GenericDataFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 128000, 12800
+        return 64000, 6400
