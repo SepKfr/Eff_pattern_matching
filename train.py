@@ -234,7 +234,13 @@ class Train:
                                os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
                 e_stop = epoch
 
-            if epoch - e_stop > 10:
+            if self.exp_name == "covid":
+                iter_to_stop = 10
+
+            else:
+                iter_to_stop = 15
+
+            if epoch - e_stop > iter_to_stop:
                 break
 
         return val_loss
