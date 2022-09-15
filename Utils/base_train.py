@@ -124,7 +124,7 @@ def sample_train_val_test(ddf, max_samples, time_steps, num_encoder_steps, pred_
     return sampled_data
 
 
-def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, pred_len, column_definition, device):
+def batch_sampled_data(data, train_percent, max_samples, time_steps, num_encoder_steps, pred_len, column_definition, device):
     """Samples segments into a compatible format.
     Args:
       seed:
@@ -145,7 +145,7 @@ def batch_sampled_data(data, max_samples, time_steps, num_encoder_steps, pred_le
 
     data.sort_values(by=[time_col], inplace=True)
 
-    train_len = int(len(data) * 0.6)
+    train_len = int(len(data) * train_percent)
     valid_len = int((len(data) - train_len) / 2)
 
     train = data[:train_len]

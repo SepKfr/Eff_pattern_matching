@@ -79,6 +79,7 @@ class Train:
         self.mae_loss = nn.L1Loss()
         self.num_epochs = self.params['num_epochs']
         self.name = args.name
+        self.pr = args.pr
         self.param_history = []
         self.erros = dict()
         self.exp_name = args.exp_name
@@ -115,7 +116,7 @@ class Train:
         train_max, valid_max = self.formatter.get_num_samples_for_calibration()
         max_samples = (train_max, valid_max)
 
-        train, valid, test = batch_sampled_data(data, max_samples, self.params['total_time_steps'],
+        train, valid, test = batch_sampled_data(data, self.pr, max_samples, self.params['total_time_steps'],
                                                 self.params['num_encoder_steps'], self.pred_len,
                                                 self.params["column_definition"],
                                                 self.device)
@@ -305,6 +306,7 @@ def main():
     parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
+    parser.add_argument("--pr", type=float, default=0.5)
     parser.add_argument("--n_trials", type=int, default=100)
     parser.add_argument("--DataParallel", type=bool, default=False)
     args = parser.parse_args()
@@ -317,7 +319,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [14, 21, 30]:
+    for pred_len in [24, 48]:
         Train(raw_data, args, pred_len)
 
 
