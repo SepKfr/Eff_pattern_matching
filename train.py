@@ -191,7 +191,7 @@ class Train:
                             seed=self.seed, kernel=kernel)
         model.to(self.device)
 
-        optimizer = Adam(model.parameters(), lr=1e-4)
+        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 1000)
 
         epoch_start = 0
 
@@ -209,7 +209,7 @@ class Train:
 
                 optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                optimizer.step_and_update_lr()
 
             print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
@@ -256,7 +256,7 @@ class Train:
                 forecast = torch.from_numpy(extract_numerical_data(p).to_numpy()).to(self.device)
 
                 if self.exp_name == "covid":
-                    forecast = torch.round(forecast)
+                    forecast = forecast.int()
 
                 predictions[j, :forecast.shape[0], :] = forecast
 
