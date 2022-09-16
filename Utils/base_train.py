@@ -142,8 +142,9 @@ def batch_sampled_data(data, train_percent, max_samples, time_steps, num_encoder
     random.seed(2436)
 
     time_col = utils.get_single_col_by_input_type(InputTypes.TIME, column_definition)
+    id_col = utils.get_single_col_by_input_type(InputTypes.ID, column_definition)
 
-    data.sort_values(by=[time_col], inplace=True)
+    data.sort_values(by=[id_col, time_col], inplace=True)
 
     train_len = int(len(data) * train_percent)
     valid_len = int((len(data) - train_len) / 2)

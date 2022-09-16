@@ -315,7 +315,7 @@ def main():
     parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
-    parser.add_argument("--pr", type=float, default=0.33)
+    parser.add_argument("--pr", type=float, default=0.8)
     parser.add_argument("--n_trials", type=int, default=100)
     parser.add_argument("--DataParallel", type=bool, default=False)
     args = parser.parse_args()
@@ -328,7 +328,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [7, 28, 56]:
+    for pred_len in [24, 48, 72]:
         Train(raw_data, args, pred_len)
 
 
