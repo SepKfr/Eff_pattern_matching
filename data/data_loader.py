@@ -394,13 +394,28 @@ def process_covid(args):
 
     # adding travel data
 
+    df_travel = pd.read_csv(os.path.join('~/Downloads', 'Trips_by_Distance.csv'))
+
     df.index = pd.to_datetime(df.REPORT_DATE)
+    df_travel.index = pd.to_datetime(df_travel.Date)
+    df_travel["date"] = df_travel.index.astype(str)
+
     df.sort_index(inplace=True)
+    df_travel.sort_index(inplace=True)
 
     df = df.dropna()
+    df_travel = df_travel.dropna()
+    df_travel["County FIPS"] = df_travel["County FIPS"].astype(int)
     df["COUNTY_FIPS_NUMBER"] = df["COUNTY_FIPS_NUMBER"].astype(int)
 
     earliest_time = df.index.min()
+    latest_time = df_travel.index.max()
+
+    active_range = (df.index >= earliest_time) & (df.index <= latest_time)
+    active_range_trip = (df_travel.index >= earliest_time) & (df_travel.index <= latest_time)
+
+    df = df[active_range]
+    df_travel = df_travel[active_range_trip]
     date = df.index
 
     df['day_of_week'] = date.dayofweek
@@ -408,7 +423,20 @@ def process_covid(args):
     df['categorical_id'] = df['id'].copy()
     df['days_from_start'] = (date - earliest_time).days
 
-    df.to_csv("covid.csv")
+    ls_df = []
+    for fip, dff in df.groupby('COUNTY_FIPS_NUMBER'):
+
+        tmp = df_travel.loc[df_travel['County FIPS'] == fip]
+        dff.loc[0:len(tmp),'date'] = tmp["date"].values
+        dff.loc[0:len(tmp),"Number of Trips"] = tmp["Number of Trips"].values
+        dff.loc[0:len(tmp),"Population Staying at Home"] = tmp["Population Staying at Home"].values
+        dff.loc[0:len(tmp),"Population Not Staying at Home"] = tmp["Population Not Staying at Home"].values
+        ls_df.append(dff)
+
+    df_f = pd.concat(ls_df, axis=0)
+    df_f = df_f.dropna()
+
+    df_f.to_csv("covid.csv")
 
     print('Done.')
 

@@ -165,7 +165,7 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        d_model = trial.suggest_categorical("d_model", [16, 32])
+        d_model = trial.suggest_categorical("d_model", [16, 64])
         stack_size = 1
 
         n_heads = self.model_params['num_heads']
@@ -194,7 +194,6 @@ class Train:
         optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 500)
 
         epoch_start = 0
-        e_stop = 0
 
         val_inner_loss = 1e10
 
@@ -231,16 +230,6 @@ class Train:
                     self.best_model = model
                     torch.save({'model_state_dict': model.state_dict()},
                                os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
-                e_stop = epoch
-
-            if self.exp_name == "covid":
-                iter_to_stop = 10
-
-            else:
-                iter_to_stop = 15
-
-            if epoch - e_stop > iter_to_stop:
-                break
 
         return val_loss
 
@@ -328,7 +317,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [24, 48, 72]:
+    for pred_len in [72]:
         Train(raw_data, args, pred_len)
 
 
