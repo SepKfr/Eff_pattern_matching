@@ -165,7 +165,7 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        d_model = trial.suggest_categorical("d_model", [16, 32])
+        d_model = trial.suggest_categorical("d_model", [16, 65])
         stack_size = 1
 
         n_heads = self.model_params['num_heads']
@@ -191,7 +191,7 @@ class Train:
                             seed=self.seed, kernel=kernel)
         model.to(self.device)
 
-        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 1000)
+        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 500)
 
         epoch_start = 0
 
