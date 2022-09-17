@@ -194,6 +194,7 @@ class Train:
         optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 500)
 
         epoch_start = 0
+        epoch_end = 0
 
         val_inner_loss = 1e10
 
@@ -230,6 +231,11 @@ class Train:
                     self.best_model = model
                     torch.save({'model_state_dict': model.state_dict()},
                                os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
+                epoch_end = epoch
+
+            if self.exp_name == "covid":
+                if epoch - epoch_end > 10:
+                    break
 
         return val_loss
 
