@@ -16,7 +16,7 @@ class KittyCatConv(nn.Module):
 
         self.device = device
         self.d_k = d_k
-        self.filter_length = [1, 3, 7]
+        self.filter_length = [3, 6, 9]
 
         self.proj_q = nn.Linear(d_k, 1, bias=False, device=device)
         self.proj_k = nn.Linear(d_k, 1, bias=False, device=device)
@@ -35,6 +35,15 @@ class KittyCatConv(nn.Module):
 
         self.norm_conv = nn.BatchNorm1d(h).to(device)
         self.activation = nn.ELU().to(device)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
+
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
+
         self.factor = 1
 
     def forward(self, Q, K, V, attn_mask):
@@ -45,7 +54,7 @@ class KittyCatConv(nn.Module):
         K_l = []
 
         Q = self.proj_q(Q)
-        K = self.proj_q(K)
+        K = self.proj_k(K)
 
         Q = Q.reshape(b, -1, l)
         K = K.reshape(b, -1, l_k)
