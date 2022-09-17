@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 import math
 import random
+from torchvision.transforms import GaussianBlur
 
 
 class KittyCatConv(nn.Module):
@@ -22,23 +23,16 @@ class KittyCatConv(nn.Module):
         self.proj_k = nn.Linear(d_k, 1, bias=False, device=device)
 
         self.conv_list_k = nn.ModuleList([
-            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2), padding_mode='circular')
+            GaussianBlur(kernel_size=f, sigma=(f-1)/6)
             for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2), padding_mode='circular')
+            GaussianBlur(kernel_size=f, sigma=(f - 1) / 6)
             for f in self.filter_length]
         ).to(device)
 
         self.proj_back_q = nn.Linear(1, self.d_k, bias=False).to(device)
         self.proj_back_k = nn.Linear(1, self.d_k, bias=False).to(device)
-
-        self.norm_conv = nn.BatchNorm1d(h).to(device)
-        self.activation = nn.ELU().to(device)
-
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -61,8 +55,8 @@ class KittyCatConv(nn.Module):
 
         for i in range(len(self.filter_length)):
 
-            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
-            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
+            Q = self.conv_list_q[i](Q)
+            K = self.conv_list_k[i](K)
             Q_l.append(Q)
             K_l.append(K)
 
