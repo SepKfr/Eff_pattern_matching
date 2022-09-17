@@ -16,17 +16,17 @@ class KittyCatConv(nn.Module):
 
         self.device = device
         self.d_k = d_k
-        self.filter_length = [3, 6, 9]
+        self.filter_length = [3, 7, 9]
 
         self.proj_q = nn.Linear(d_k, 1, bias=False, device=device)
         self.proj_k = nn.Linear(d_k, 1, bias=False, device=device)
 
         self.conv_list_k = nn.ModuleList([
-            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2))
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2), padding_mode='circular')
             for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2))
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2), padding_mode='circular')
             for f in self.filter_length]
         ).to(device)
 
