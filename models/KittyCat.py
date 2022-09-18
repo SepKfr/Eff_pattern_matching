@@ -17,7 +17,7 @@ class KittyCatConv(nn.Module):
 
         self.device = device
         self.d_k = d_k
-        self.filter_length = [1, 3, 7, 9]
+        self.filter_length = [3, 7, 9]
 
         self.proj_q = nn.Linear(d_k, 1, bias=False, device=device)
         self.proj_k = nn.Linear(d_k, 1, bias=False, device=device)
@@ -27,7 +27,7 @@ class KittyCatConv(nn.Module):
             for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            GaussianBlur(kernel_size=f, sigma=(f - 1) / 6)
+            GaussianBlur(kernel_size=f, sigma=(f-1)/6)
             for f in self.filter_length]
         ).to(device)
 
