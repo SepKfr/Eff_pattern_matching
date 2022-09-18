@@ -34,7 +34,7 @@ class KittyCatConv(nn.Module):
         self.proj_back_q = nn.Linear(1, self.d_k, bias=False).to(device)
         self.proj_back_k = nn.Linear(1, self.d_k, bias=False).to(device)
 
-        self.norm = nn.BatchNorm1d(h)
+        self.norm = nn.BatchNorm1d(h).to(device)
         self.activation = nn.ELU()
 
         for m in self.modules():
