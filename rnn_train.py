@@ -229,7 +229,9 @@ class Train:
         for j in range(n_batches_test):
 
             output = self.best_model(self.test.enc[j], self.test.dec[j])
-            output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
+            predictions[j] = output.squeeze(-1)
+            targets_all[j] = output.squeeze(-1)
+            '''output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
                 if self.exp_name == "covid":
@@ -243,7 +245,7 @@ class Train:
                 targets = torch.from_numpy(extract_numerical_data(
                     self.formatter.format_predictions(output_map["targets"])).to_numpy().astype(tp)).to(self.device)
 
-                targets_all[j, :targets.shape[0], :] = targets
+                targets_all[j, :targets.shape[0], :] = targets'''
 
         test_loss = self.criterion(predictions.to(self.device), targets_all.to(self.device)).item()
         normaliser = targets_all.to(self.device).abs().mean()
@@ -296,7 +298,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [24, 48, 72]:
+    for pred_len in [24, 48, 72, 96]:
         Train(raw_data, args, pred_len)
 
 
