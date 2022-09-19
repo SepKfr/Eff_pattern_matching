@@ -273,12 +273,14 @@ class Train:
 
                 targets_all[j, :targets.shape[0], :] = targets'''
 
-        test_loss = self.criterion(predictions.to(self.device), targets_all.to(self.device)).item()
-        normaliser = targets_all.to(self.device).abs().mean()
+        predictions = predictions.to('cpu')
+        targets_all = targets_all.to('cpu')
+        test_loss = self.criterion(predictions, targets_all).item()
+        normaliser = targets_all.abs().mean()
         test_loss = test_loss / normaliser
 
-        mae_loss = self.mae_loss(predictions.to(self.device), targets_all.to(self.device)).item()
-        normaliser = targets_all.to(self.device).abs().mean()
+        mae_loss = self.mae_loss(predictions, targets_all).item()
+        normaliser = targets_all.abs().mean()
         mae_loss = mae_loss / normaliser
 
         print("test loss {:.4f}".format(test_loss))
