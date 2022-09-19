@@ -76,7 +76,8 @@ class Train:
                     rnn_type="lstm",
                     device=self.device,
                     d_r=0,
-                    seed=self.seed)
+                    seed=self.seed,
+                    pred_len=self.pred_len)
         model.to(self.device)
         return model
 
@@ -96,24 +97,16 @@ class Train:
         data = self.formatter.transform_data(self.data)
 
         train_max, valid_max = self.formatter.get_num_samples_for_calibration()
-        total_num = train_max + 2 * valid_max
-        train_b = int(total_num * 0.8)
-        valid_len = int((total_num - train_b) / 2)
+        max_samples = (train_max, valid_max)
 
-        data_sample = self.sample_data(total_num, data)
+        train, valid, test = batch_sampled_data(data, 0.8, max_samples, self.params['total_time_steps'],
+                                                self.params['num_encoder_steps'], self.pred_len,
+                                                self.params["column_definition"],
+                                                self.device)
 
-        trn_batching = batching(self.batch_size, data_sample.enc[:train_b, :, :], data_sample.dec[:train_b, :, :],
-                                data_sample.y_true[:train_b, :, :], data_sample.y_id[:train_b, :, :])
-
-        valid_batching = batching(self.batch_size, data_sample.enc[train_b:train_b + valid_len, :, :],
-                                  data_sample.dec[train_b:train_b + valid_len, :, :],
-                                  data_sample.y_true[train_b:train_b + valid_len, :, :],
-                                  data_sample.y_id[train_b:train_b + valid_len, :, :])
-
-        test_batching = batching(self.batch_size, data_sample.enc[-valid_len:, :, :],
-                                 data_sample.dec[-valid_len:, :, :],
-                                 data_sample.y_true[-valid_len:, :, :],
-                                 data_sample.y_id[-valid_len:, :, :])
+        trn_batching = batching(self.batch_size, train.enc, train.dec, train.y_true, train.y_id)
+        valid_batching = batching(self.batch_size, valid.enc, valid.dec, valid.y_true, valid.y_id)
+        test_batching = batching(self.batch_size, test.enc, test.dec, test.y_true, test.y_id)
 
         trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3], self.device)
         valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3], self.device)
@@ -156,7 +149,7 @@ class Train:
         if not os.path.exists(self.model_path):
             os.makedirs(self.model_path)
 
-        d_model = trial.suggest_categorical("d_model", [8, 16])
+        d_model = trial.suggest_categorical("d_model", [16, 32])
         stack_size = self.model_params['stack_size'][0]
 
         if d_model in self.param_history or self.n_distinct_trial > 4:
@@ -172,10 +165,11 @@ class Train:
                     rnn_type="lstm",
                     device=self.device,
                     d_r=0,
-                    seed=self.seed)
+                    seed=self.seed,
+                    pred_len=self.pred_len)
         model.to(self.device)
 
-        optimizer = Adam(model.parameters())
+        optimizer = Adam(model.parameters(), lr=1e-4)
 
         epoch_start = 0
 
