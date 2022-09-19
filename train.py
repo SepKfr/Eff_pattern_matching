@@ -191,7 +191,7 @@ class Train:
                             seed=self.seed, kernel=kernel)
         model.to(self.device)
 
-        optimizer = Adam(model.parameters(), lr=1e-4)
+        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, 1000)
 
         epoch_start = 0
         epoch_end = 0
@@ -210,7 +210,7 @@ class Train:
 
                 optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                optimizer.step_and_update_lr()
 
             print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
@@ -323,7 +323,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [24, 48, 72]:
+    for pred_len in [24, 48, 72, 96]:
         Train(raw_data, args, pred_len)
 
 

@@ -3,7 +3,6 @@ import torch.nn as nn
 import numpy as np
 import math
 import random
-from torchvision.transforms import GaussianBlur
 
 
 class KittyCatConv(nn.Module):
@@ -17,29 +16,33 @@ class KittyCatConv(nn.Module):
 
         self.device = device
         self.d_k = d_k
-        self.filter_length = [3, 7, 9, 15]
+        self.filter_length = [3, 7, 9]
 
         self.proj_q = nn.Linear(d_k, 1, bias=False, device=device)
         self.proj_k = nn.Linear(d_k, 1, bias=False, device=device)
 
         self.conv_list_k = nn.ModuleList([
-            GaussianBlur(kernel_size=f, sigma=(f-1)/6)
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2), padding_mode='circular')
             for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            GaussianBlur(kernel_size=f, sigma=(f - 1) / 6)
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2), padding_mode='circular')
             for f in self.filter_length]
         ).to(device)
 
         self.proj_back_q = nn.Linear(1, self.d_k, bias=False).to(device)
         self.proj_back_k = nn.Linear(1, self.d_k, bias=False).to(device)
 
-        self.norm = nn.BatchNorm1d(h).to(device)
-        self.activation = nn.ELU()
+        self.norm_conv = nn.BatchNorm1d(h).to(device)
+        self.activation = nn.ELU().to(device)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, -1/np.sqrt(d_k), 1/np.sqrt(d_k))
+                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
 
         self.factor = 1
 
@@ -58,8 +61,10 @@ class KittyCatConv(nn.Module):
 
         for i in range(len(self.filter_length)):
 
-            Q_l.append(self.activation(self.norm(self.conv_list_q[i](Q))))
-            K_l.append(self.activation(self.norm(self.conv_list_k[i](K))))
+            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
+            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
+            Q_l.append(Q)
+            K_l.append(K)
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l * len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k * len(self.filter_length), -1)
