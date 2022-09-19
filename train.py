@@ -256,7 +256,9 @@ class Train:
         for j in range(n_batches_test):
 
             output = self.best_model(self.test.enc[j], self.test.dec[j])
-            output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
+            predictions[j] = output.squeeze(-1)
+            targets_all[j] = self.test.y_true[j].squeeze(-1)
+            '''output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
                 forecast = torch.from_numpy(extract_numerical_data(p).to_numpy()).to(self.device)
@@ -269,7 +271,7 @@ class Train:
                 targets = torch.from_numpy(extract_numerical_data(
                     self.formatter.format_predictions(output_map["targets"])).to_numpy()).to(self.device)
 
-                targets_all[j, :targets.shape[0], :] = targets
+                targets_all[j, :targets.shape[0], :] = targets'''
 
         test_loss = self.criterion(predictions.to(self.device), targets_all.to(self.device)).item()
         normaliser = targets_all.to(self.device).abs().mean()
@@ -307,7 +309,7 @@ def main():
     parser = argparse.ArgumentParser(description="preprocess argument parser")
     parser.add_argument("--attn_type", type=str, default='KittyCat')
     parser.add_argument("--name", type=str, default="KittyCat")
-    parser.add_argument("--exp_name", type=str, default='covid')
+    parser.add_argument("--exp_name", type=str, default='traffic')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--pr", type=float, default=0.8)
