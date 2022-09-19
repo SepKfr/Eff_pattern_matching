@@ -22,11 +22,11 @@ class KittyCatConv(nn.Module):
         self.proj_k = nn.Linear(d_k, 1, bias=False, device=device)
 
         self.conv_list_k = nn.ModuleList([
-            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2), padding_mode='circular')
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2))
             for f in self.filter_length]
         ).to(device)
         self.conv_list_q = nn.ModuleList([
-            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2), padding_mode='circular')
+            nn.Conv1d(in_channels=h, out_channels=h, kernel_size=f, padding=int((f-1)/2))
             for f in self.filter_length]
         ).to(device)
 
@@ -42,7 +42,7 @@ class KittyCatConv(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
+                nn.init.normal_(m.weight, -1/np.sqrt(d_k), 1/np.sqrt(d_k))
 
         self.factor = 1
 
