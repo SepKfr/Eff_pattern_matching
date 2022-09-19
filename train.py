@@ -275,7 +275,7 @@ class Train:
 
         test_loss = self.criterion(predictions.to(self.device), targets_all.to(self.device)).item()
         normaliser = targets_all.to(self.device).abs().mean()
-        test_loss = math.sqrt(test_loss) / normaliser
+        test_loss = test_loss / normaliser
 
         mae_loss = self.mae_loss(predictions.to(self.device), targets_all.to(self.device)).item()
         normaliser = targets_all.to(self.device).abs().mean()
