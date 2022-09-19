@@ -42,7 +42,7 @@ class KittyCatConv(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn.init.normal(m.weight, -1/np.sqrt(d_k), 1/np.sqrt(d_k))
+                nn.init.normal_(m.weight, -1/np.sqrt(d_k), 1/np.sqrt(d_k))
 
         self.factor = 1
 
