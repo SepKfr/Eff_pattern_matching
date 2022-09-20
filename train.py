@@ -256,8 +256,8 @@ class Train:
         for j in range(n_batches_test):
 
             output = self.best_model(self.test.enc[j], self.test.dec[j])
-            predictions[j] = output.squeeze(-1).detach().numpy()
-            targets_all[j] = self.test.y_true[j].squeeze(-1).detach().numpy()
+            predictions[j] = output.squeeze(-1).cpu().detach().numpy()
+            targets_all[j] = self.test.y_true[j].cup().squeeze(-1).detach().numpy()
             '''output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
