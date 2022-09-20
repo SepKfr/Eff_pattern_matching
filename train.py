@@ -249,15 +249,15 @@ class Train:
             ]]
 
         self.best_model.eval()
-        predictions = torch.zeros(self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2])
-        targets_all = torch.zeros(self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2])
+        predictions = np.zeros((self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2]))
+        targets_all = np.zeros((self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2]))
         n_batches_test = self.test.enc.shape[0]
 
         for j in range(n_batches_test):
 
             output = self.best_model(self.test.enc[j], self.test.dec[j])
-            '''predictions[j] = output.squeeze(-1).to('cpu')
-            targets_all[j] = self.test.y_true[j].squeeze(-1).to('cpu')'''
+            predictions[j] = output.squeeze(-1).detach().numpy()
+            targets_all[j] = self.test.y_true[j].squeeze(-1).detach().numpy()
             '''output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
@@ -273,6 +273,8 @@ class Train:
 
                 targets_all[j, :targets.shape[0], :] = targets'''
 
+        predictions = torch.from_numpy(predictions)
+        targets_all = torch.from_numpy(targets_all)
         test_loss = self.criterion(predictions, targets_all).item()
         normaliser = targets_all.abs().mean()
         test_loss = test_loss / normaliser
@@ -309,7 +311,7 @@ def main():
     parser = argparse.ArgumentParser(description="preprocess argument parser")
     parser.add_argument("--attn_type", type=str, default='basic_attn')
     parser.add_argument("--name", type=str, default="KittyCat")
-    parser.add_argument("--exp_name", type=str, default='traffic')
+    parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--pr", type=float, default=0.8)
