@@ -256,8 +256,8 @@ class Train:
         for j in range(n_batches_test):
 
             output = self.best_model(self.test.enc[j], self.test.dec[j])
-            predictions[j] = output.squeeze(-1)
-            targets_all[j] = self.test.y_true[j].squeeze(-1)
+            predictions[j] = output.squeeze(-1).to('cpu')
+            targets_all[j] = self.test.y_true[j].squeeze(-1).to('cpu')
             '''output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
@@ -273,8 +273,6 @@ class Train:
 
                 targets_all[j, :targets.shape[0], :] = targets'''
 
-        predictions = predictions.to('cpu')
-        targets_all = targets_all.to('cpu')
         test_loss = self.criterion(predictions, targets_all).item()
         normaliser = targets_all.abs().mean()
         test_loss = test_loss / normaliser
@@ -309,7 +307,7 @@ class Train:
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='KittyCat')
+    parser.add_argument("--attn_type", type=str, default='basic_attn')
     parser.add_argument("--name", type=str, default="KittyCat")
     parser.add_argument("--exp_name", type=str, default='traffic')
     parser.add_argument("--cuda", type=str, default="cuda:0")
