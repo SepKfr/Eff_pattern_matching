@@ -60,10 +60,6 @@ class MultiHeadAttention(nn.Module):
         self.kernel = kernel
         self.seed = seed
 
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
-
     def forward(self, Q, K, V, attn_mask):
 
         batch_size = Q.shape[0]
@@ -105,10 +101,6 @@ class PoswiseFeedForwardNet(nn.Module):
 
         self.w_1 = nn.Linear(d_model, d_ff)
         self.w_2 = nn.Linear(d_ff, d_model)
-
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
 
     def forward(self, inputs):
 
@@ -284,10 +276,6 @@ class Transformer(nn.Module):
         self.attn_type = attn_type
         self.pred_len = pred_len
         self.device = device
-
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
 
     def forward(self, enc_inputs, dec_inputs):
 

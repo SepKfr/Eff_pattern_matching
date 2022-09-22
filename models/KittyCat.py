@@ -16,7 +16,7 @@ class KittyCatConv(nn.Module):
 
         self.device = device
         self.d_k = d_k
-        self.filter_length = [3, 7, 9]
+        self.filter_length = [1, 3, 7, 9]
 
         self.proj_q = nn.Linear(d_k, 1, bias=False, device=device)
         self.proj_k = nn.Linear(d_k, 1, bias=False, device=device)
@@ -40,10 +40,6 @@ class KittyCatConv(nn.Module):
             if isinstance(m, nn.Conv1d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
 
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.normal_(m.weight, -1/np.sqrt(d_k), 1/np.sqrt(d_k))
-
         self.factor = 1
 
     def forward(self, Q, K, V, attn_mask):
@@ -59,12 +55,8 @@ class KittyCatConv(nn.Module):
         Q = Q.reshape(b, -1, l)
         K = K.reshape(b, -1, l_k)
 
-        for i in range(len(self.filter_length)):
-
-            Q = self.activation(self.norm_conv(self.conv_list_q[i](Q)))
-            K = self.activation(self.norm_conv(self.conv_list_k[i](K)))
-            Q_l.append(Q)
-            K_l.append(K)
+        [Q_l.append(self.activation(self.norm_conv(self.conv_list_q[i](Q)))) for i in range(len(self.filter_length))]
+        [K_l.append(self.activation(self.norm_conv(self.conv_list_k[i](K)))) for i in range(len(self.filter_length))]
 
         Q_p = torch.cat(Q_l, dim=0).reshape(b, h, l * len(self.filter_length), -1)
         K_p = torch.cat(K_l, dim=0).reshape(b, h, l_k * len(self.filter_length), -1)
