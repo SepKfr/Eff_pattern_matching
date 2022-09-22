@@ -40,6 +40,10 @@ class KittyCatConv(nn.Module):
             if isinstance(m, nn.Conv1d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
 
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.uniform_(m.weight, -1/np.sqrt(d_k), 1/np.sqrt(d_k))
+
         self.factor = 1
 
     def forward(self, Q, K, V, attn_mask):
