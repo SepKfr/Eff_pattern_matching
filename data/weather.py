@@ -66,4 +66,4 @@ class weatherFormatter(TrafficFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 102400, 10240
+        return 32000, 3200
