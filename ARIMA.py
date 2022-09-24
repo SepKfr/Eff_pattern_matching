@@ -65,9 +65,9 @@ def Train(data, args, pred_len):
     criterion = torch.nn.MSELoss()
     mae_loss = torch.nn.L1Loss()
 
-    test_loss = criterion(predictions, targets_all).item()
+    mse_loss = criterion(predictions, targets_all).item()
     normaliser = targets_all.abs().mean()
-    test_loss = test_loss / normaliser
+    mse_loss = mse_loss / normaliser
 
     mae_loss = mae_loss(predictions, targets_all).item()
     normaliser = targets_all.abs().mean()
@@ -75,10 +75,10 @@ def Train(data, args, pred_len):
 
     erros = dict()
 
-    print("test loss {:.4f}".format(test_loss))
+    print("test loss {:.4f}".format(mse_loss))
 
     erros["{}".format(args.name)] = list()
-    erros["{}".format(args.name)].append(float("{:.5f}".format(test_loss)))
+    erros["{}".format(args.name)].append(float("{:.5f}".format(mse_loss)))
     erros["{}".format(args.name)].append(float("{:.5f}".format(mae_loss)))
 
     error_path = "new_Errors_{}_{}.json".format(args.exp_name, pred_len)
@@ -88,7 +88,7 @@ def Train(data, args, pred_len):
             json_dat = json.load(json_file)
             if json_dat.get("{}".format(args.name)) is None:
                 json_dat["{}".format(args.name)] = list()
-            json_dat["{}".format(args.name)].append(float("{:.5f}".format(test_loss)))
+            json_dat["{}".format(args.name)].append(float("{:.5f}".format(mse_loss)))
             json_dat["{}".format(args.name)].append(float("{:.5f}".format(mae_loss)))
 
         with open(error_path, "w") as json_file:
