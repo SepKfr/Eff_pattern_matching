@@ -45,12 +45,13 @@ def Train(data, args, pred_len):
 
     sample_test = sample_train_val_test(test, valid_max, time_steps, num_encoder_steps, pred_len, column_definition)
 
+    y_true = np.squeeze(sample_test["outputs"], axis=-1)
     test = np.squeeze(sample_test["outputs_arima"], axis=-1)
 
     ls_outer = []
 
     for i in tqdm(range(len(test))):
-        arima = ARIMA(test[i, :-pred_len], order=(1, 1, 0))
+        arima = ARIMA(test[i], order=(1, 0, 0))
         model = arima.fit()
         ls_inner = []
         for j in range(pred_len):
@@ -59,7 +60,7 @@ def Train(data, args, pred_len):
         ls_outer.append(ls_inner)
 
     predictions = torch.from_numpy(np.array(ls_outer))
-    targets_all = torch.from_numpy(test[:, -pred_len:])
+    targets_all = torch.from_numpy(y_true)
 
     criterion = torch.nn.MSELoss()
     mae_loss = torch.nn.L1Loss()
@@ -80,7 +81,7 @@ def Train(data, args, pred_len):
     erros["{}".format(args.name)].append(float("{:.5f}".format(test_loss)))
     erros["{}".format(args.name)].append(float("{:.5f}".format(mae_loss)))
 
-    error_path = "new_Errors_{}_{}.json".format(args.name, pred_len)
+    error_path = "new_Errors_{}_{}.json".format(args.exp_name, pred_len)
 
     if os.path.exists(error_path):
         with open(error_path) as json_file:
