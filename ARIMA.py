@@ -53,11 +53,13 @@ def Train(data, args, pred_len):
     ls_outer = []
 
     for i in tqdm(range(len(test))):
-        arima = ARIMA(test[i], order=(1, 1, 0))
-        model = arima.fit()
+        tmp = test[i]
         ls_inner = []
         for j in range(pred_len):
+            arima = ARIMA(tmp, order=(1, 1, 0))
+            model = arima.fit()
             pred = model.forecast()[0]
+            tmp = np.append(tmp, pred)
             ls_inner.append(pred)
         ls_outer.append(ls_inner)
 
