@@ -25,6 +25,8 @@ def Train(data, args, pred_len):
     num_encoder_steps = params['num_encoder_steps']
     column_definition = params["column_definition"]
 
+    data = formatter.transform_data(data)
+
     train_max, valid_max = formatter.get_num_samples_for_calibration()
     max_samples = (train_max, valid_max)
 
@@ -46,12 +48,12 @@ def Train(data, args, pred_len):
     sample_test = sample_train_val_test(test, valid_max, time_steps, num_encoder_steps, pred_len, column_definition)
 
     y_true = np.squeeze(sample_test["outputs"], axis=-1)
-    test = np.squeeze(sample_test["outputs_arima"], axis=-1)
+    test = np.squeeze(sample_test["input_arima"], axis=-1)
 
     ls_outer = []
 
     for i in tqdm(range(len(test))):
-        arima = ARIMA(test[i], order=(1, 0, 0))
+        arima = ARIMA(test[i], order=(1, 1, 0))
         model = arima.fit()
         ls_inner = []
         for j in range(pred_len):
@@ -101,7 +103,7 @@ def Train(data, args, pred_len):
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--exp_name", type=str, default='covid')
+    parser.add_argument("--exp_name", type=str, default='traffic')
     parser.add_argument("--name", type=str, default='arima')
     args = parser.parse_args()
 
