@@ -56,8 +56,8 @@ model_params = formatter.get_default_model_params()
 src_input_size = test.enc.shape[3]
 tgt_input_size = test.dec.shape[3]
 
-predictions = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
-targets_all = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
+predictions = torch.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
+targets_all = torch.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
 n_batches_test = test.enc.shape[0]
 
 mse = nn.MSELoss()
@@ -84,21 +84,21 @@ for i, seed in enumerate([4293, 1692, 3029]):
 
                     for j in range(n_batches_test):
                         output = model(test.enc[j], test.dec[j])
-                        predictions[i, j] = output.squeeze(-1).cpu().detach().numpy()
-                        targets_all[i, j] = test.y_true[j].cpu().squeeze(-1).detach().numpy()
+                        predictions[i, j] = output.squeeze(-1)
+                        targets_all[i, j] = test.y_true[j].cpu().squeeze(-1)
 
     except ValueError:
         pass
 
-predictions = np.mean(predictions, axis=0)
-targets_all = np.mean(targets_all, axis=0)
+predictions = torch.mean(predictions, dim=0)
+targets_all = torch.mean(targets_all, dim=0)
 
-results = np.zeros((2, args.pred_len))
+results = torch.zeros(2, args.pred_len)
 
 for j in range(args.pred_len):
-    print(predictions[:, :, j].shape)
-    results[0, j] = mse(predictions[:, :, j], targets_all[:, :, j])
-    results[1, j] = mse(predictions[:, :, j], targets_all[:, :, j])
 
-df = pd.DataFrame(results, columns=["mse", "mae"])
+    results[0, j] = mse(predictions[:, :, j], targets_all[:, :, j])
+    results[1, j] = mae(predictions[:, :, j], targets_all[:, :, j])
+
+df = pd.DataFrame(results.detach().cpu().numpy(), columns=["mse", "mae"])
 df.to_csv("{}_{}.csv".format(args.name, args.pred_len))
