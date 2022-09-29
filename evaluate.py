@@ -100,5 +100,5 @@ for j in range(args.pred_len):
     results[0, j] = mse(predictions[:, :, j], targets_all[:, :, j])
     results[1, j] = mae(predictions[:, :, j], targets_all[:, :, j])
 
-df = pd.DataFrame(results.detach().cpu().numpy(), columns=["mse", "mae"])
+df = pd.DataFrame(results.detach().cpu().numpy())
 df.to_csv("{}_{}.csv".format(args.name, args.pred_len))
