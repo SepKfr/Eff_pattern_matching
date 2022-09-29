@@ -104,9 +104,8 @@ results = torch.zeros(2, args.pred_len)
 
 for j in range(args.pred_len):
 
-    normaliser = targets_all[:, :, j].abs().mean()
-    results[0, j] = mse(predictions[:, :, j], targets_all[:, :, j]) / normaliser
-    results[1, j] = mae(predictions[:, :, j], targets_all[:, :, j]) / normaliser
+    results[0, j] = mse(predictions[:, :, j], targets_all[:, :, j]).item()
+    results[1, j] = mae(predictions[:, :, j], targets_all[:, :, j]).item()
 
 df = pd.DataFrame(results.detach().cpu().numpy())
 df.to_csv("{}_{}_{}.csv".format(args.exp_name, args.name, args.pred_len))
