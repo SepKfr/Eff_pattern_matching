@@ -52,6 +52,7 @@ class NoamOpt:
 
 
 def create_config(hyper_parameters):
+
     prod = list(itertools.product(*hyper_parameters))
     return list(random.sample(set(prod), len(prod)))
 
@@ -321,7 +322,6 @@ def main():
     args = parser.parse_args()
 
     np.random.seed(args.seed)
-
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
