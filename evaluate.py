@@ -54,7 +54,6 @@ trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[
 valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3], device)
 test = ModelData(test_batching[0], test_batching[1], test_batching[2], test_batching[3], device)
 
-seed = args.seed
 device = torch.device(args.cuda if torch.cuda.is_available() else "cpu")
 model_path = "models_{}_{}".format(args.exp_name, pred_len)
 model_params = formatter.get_default_model_params()
