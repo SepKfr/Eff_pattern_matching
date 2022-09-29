@@ -91,6 +91,7 @@ for i, seed in enumerate([4293, 1692, 3029]):
         pass
 
 predictions = np.mean(predictions, axis=0)
+print(predictions.shape)
 targets_all = np.mean(targets_all, axis=0)
 
 results = np.zeros((2, args.pred_len))
