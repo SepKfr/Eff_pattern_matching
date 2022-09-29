@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+import os
 
 from Utils.base_train import batching, ModelData, batch_sampled_data
 from data.data_loader import ExperimentConfig
@@ -80,6 +81,9 @@ for i, seed in enumerate([4293, 1692, 3029]):
                                         tgt_pad_index=0, device=device,
                                         attn_type=args.attn_type,
                                         seed=seed, kernel=k)
+                    model.load_state_dict(torch.load(os.path.join("models_{}_{}".format(args.exp_name, args.pred_len),
+                                            "{}_{}".format(args.name, seed))))
+                    model.eval()
                     model.to(device)
 
                     for j in range(n_batches_test):

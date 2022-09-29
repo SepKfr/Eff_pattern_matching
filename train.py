@@ -231,7 +231,7 @@ class Train:
                 if val_inner_loss < val_loss:
                     val_loss = val_inner_loss
                     self.best_model = model
-                    torch.save({'model_state_dict': model.state_dict()},
+                    torch.save({'model_state_dict': self.best_model.state_dict()},
                                os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
                 epoch_end = epoch
 
