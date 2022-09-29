@@ -79,7 +79,7 @@ for i, seed in enumerate([4293, 1692, 3029]):
                                         n_layers=stack_size, src_pad_index=0,
                                         tgt_pad_index=0, device=device,
                                         attn_type=args.attn_type,
-                                        seed=seed, kernel=kernel)
+                                        seed=seed, kernel=k)
                     model.to(device)
 
                     for j in range(n_batches_test):
