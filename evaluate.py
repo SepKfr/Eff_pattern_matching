@@ -84,14 +84,14 @@ for i, seed in enumerate([4293, 1692, 3029]):
 
                     for j in range(n_batches_test):
                         output = model(test.enc[j], test.dec[j])
-                        predictions[i, j] = output.squeeze(-1)
-                        targets_all[i, j] = test.y_true[j].cpu().squeeze(-1)
+                        predictions[i, j] = output.squeeze(-1).cpu().detach().numpy()
+                        targets_all[i, j] = test.y_true[j].cpu().squeeze(-1).detach().numpy()
 
     except ValueError:
         pass
 
-predictions = torch.mean(predictions, dim=0)
-targets_all = torch.mean(targets_all, dim=0)
+predictions = torch.from_numpy(np.mean(predictions, axis=0))
+targets_all = torch.from_numpy(np.mean(targets_all, axis=0))
 
 results = torch.zeros(2, args.pred_len)
 
