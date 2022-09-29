@@ -60,8 +60,6 @@ predictions = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_tr
 targets_all = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
 n_batches_test = test.enc.shape[0]
 
-mse = nn.MSELoss()
-mae = nn.L1Loss()
 
 for i, seed in enumerate([4293, 1692, 3029]):
     try:
@@ -91,13 +89,12 @@ for i, seed in enumerate([4293, 1692, 3029]):
         pass
 
 predictions = np.mean(predictions, axis=0)
-print(predictions.shape)
 targets_all = np.mean(targets_all, axis=0)
 
 results = np.zeros((2, args.pred_len))
 for j in range(args.pred_len):
-    results[0, j] = mse(predictions[:, :, j], targets_all[:, :, j])
-    results[1, j] = mse(predictions[:, :, j], targets_all[:, :, j])
+    results[0, j] = nn.MSELoss()(predictions[:, :, j], targets_all[:, :, j])
+    results[1, j] = nn.L1Loss()(predictions[:, :, j], targets_all[:, :, j])
 
 df = pd.DataFrame(results, columns=["mse", "mae"])
 df.to_csv("{}_{}.csv".format(args.name, args.pred_len))
