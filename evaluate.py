@@ -95,8 +95,8 @@ targets_all = np.mean(targets_all, axis=0)
 
 results = np.zeros((2, args.pred_len))
 for j in range(args.pred_len):
-    results[0, j] = mse(predictions[:, :, j], targets_all[j])
-    results[1, j] = mse(predictions[:, :, j], targets_all[j])
+    results[0, j] = mse(predictions[:, :, j], targets_all[:, :, j])
+    results[1, j] = mse(predictions[:, :, j], targets_all[:, :, j])
 
 df = pd.DataFrame(results, columns=["mse", "mae"])
 df.to_csv("{}_{}.csv".format(args.name, args.pred_len))
