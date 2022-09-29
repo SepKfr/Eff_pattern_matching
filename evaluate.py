@@ -93,7 +93,7 @@ for i, seed in enumerate([4293, 1692, 3029]):
                         predictions[i, j] = output.squeeze(-1).cpu().detach().numpy()
                         targets_all[i, j] = test.y_true[j].cpu().squeeze(-1).detach().numpy()
 
-    except ValueError:
+    except RuntimeError:
         pass
 
 predictions = torch.from_numpy(np.mean(predictions, axis=0))
