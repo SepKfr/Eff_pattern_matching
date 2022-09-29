@@ -94,8 +94,9 @@ predictions = np.mean(predictions, axis=0)
 targets_all = np.mean(targets_all, axis=0)
 
 results = np.zeros((2, args.pred_len))
-print(results.shape)
+
 for j in range(args.pred_len):
+    print(predictions[:, :, j].shape)
     results[0, j] = mse(predictions[:, :, j], targets_all[:, :, j])
     results[1, j] = mse(predictions[:, :, j], targets_all[:, :, j])
 
