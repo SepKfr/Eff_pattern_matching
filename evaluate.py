@@ -81,8 +81,10 @@ for i, seed in enumerate([4293, 1692, 3029]):
                                         tgt_pad_index=0, device=device,
                                         attn_type=args.attn_type,
                                         seed=seed, kernel=k)
-                    model.load_state_dict(torch.load(os.path.join("models_{}_{}".format(args.exp_name, args.pred_len),
-                                            "{}_{}".format(args.name, seed))))
+
+                    checkpoint = torch.load(os.path.join("models_{}_{}".format(args.exp_name, args.pred_len),
+                                            "{}_{}".format(args.name, seed)))
+                    model.load_state_dict(checkpoint['model_state_dict'])
                     model.eval()
                     model.to(device)
 
