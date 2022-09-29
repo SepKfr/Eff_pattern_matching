@@ -56,8 +56,8 @@ model_params = formatter.get_default_model_params()
 src_input_size = test.enc.shape[3]
 tgt_input_size = test.dec.shape[3]
 
-predictions = torch.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
-targets_all = torch.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
+predictions = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
+targets_all = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
 n_batches_test = test.enc.shape[0]
 
 mse = nn.MSELoss()
