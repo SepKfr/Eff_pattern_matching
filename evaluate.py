@@ -46,22 +46,15 @@ train, valid, test = batch_sampled_data(data, 0.8, max_samples, params['total_ti
                                         params["column_definition"],
                                         device)
 
-trn_batching = batching(batch_size, train.enc, train.dec, train.y_true, train.y_id)
-valid_batching = batching(batch_size, valid.enc, valid.dec, valid.y_true, valid.y_id)
 test_batching = batching(batch_size, test.enc, test.dec, test.y_true, test.y_id)
-
-trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3], device)
-valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3], device)
 test = ModelData(test_batching[0], test_batching[1], test_batching[2], test_batching[3], device)
 
 device = torch.device(args.cuda if torch.cuda.is_available() else "cpu")
 model_path = "models_{}_{}".format(args.exp_name, pred_len)
 model_params = formatter.get_default_model_params()
 
-src_input_size = train.enc.shape[3]
-tgt_input_size = train.dec.shape[3]
-n_batches_train = train.enc.shape[0]
-n_batches_valid = valid.enc.shape[0]
+src_input_size = test.enc.shape[3]
+tgt_input_size = test.dec.shape[3]
 
 predictions = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
 targets_all = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
