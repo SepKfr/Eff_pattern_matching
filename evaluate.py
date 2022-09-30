@@ -99,7 +99,7 @@ predictions = torch.from_numpy(np.mean(predictions, axis=0))
 
 results = torch.zeros(2, args.pred_len)
 normaliser = test.y_true.abs().mean()
-print(test.y_true[0,0, 0])
+print(test.y_true.shape)
 
 print(mse(predictions, test.y_true).item() / normaliser)
 print(mae(predictions, test.y_true).item() / normaliser)
