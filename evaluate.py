@@ -59,7 +59,7 @@ tgt_input_size = test.dec.shape[3]
 
 predictions = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
 n_batches_test = test.enc.shape[0]
-y_true = test.y_true.squeeze(-1)
+y_true = test.y_true.squeeze(-1).detach().cpu()
 
 mse = nn.MSELoss()
 mae = nn.L1Loss()
