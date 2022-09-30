@@ -11,6 +11,7 @@ import os
 from Utils.base_train import batching, ModelData, batch_sampled_data
 from data.data_loader import ExperimentConfig
 from models.eff_acat import Transformer
+from models.rnn import RNN
 
 parser = argparse.ArgumentParser(description="preprocess argument parser")
 parser.add_argument("--attn_type", type=str, default='basic_attn')
@@ -73,16 +74,28 @@ for i, seed in enumerate([4293, 1692, 3029]):
             for k in kernel:
                 d_k = int(d / n_heads)
 
-                model = Transformer(src_input_size=src_input_size,
-                                    tgt_input_size=tgt_input_size,
-                                    pred_len=pred_len,
-                                    d_model=d,
-                                    d_ff=d * 4,
-                                    d_k=d_k, d_v=d_k, n_heads=n_heads,
-                                    n_layers=stack_size, src_pad_index=0,
-                                    tgt_pad_index=0, device=device,
-                                    attn_type=args.attn_type,
-                                    seed=seed, kernel=k)
+                if args.name == "lstm":
+                    model = RNN(n_layers=stack_size,
+                                hidden_size=d,
+                                src_input_size=src_input_size,
+                                tgt_input_size=tgt_input_size,
+                                rnn_type="lstm",
+                                device=device,
+                                d_r=0,
+                                seed=seed,
+                                pred_len=pred_len)
+                else:
+
+                    model = Transformer(src_input_size=src_input_size,
+                                        tgt_input_size=tgt_input_size,
+                                        pred_len=pred_len,
+                                        d_model=d,
+                                        d_ff=d * 4,
+                                        d_k=d_k, d_v=d_k, n_heads=n_heads,
+                                        n_layers=stack_size, src_pad_index=0,
+                                        tgt_pad_index=0, device=device,
+                                        attn_type=args.attn_type,
+                                        seed=seed, kernel=k)
 
                 checkpoint = torch.load(os.path.join("models_{}_{}".format(args.exp_name, args.pred_len),
                                         "{}_{}".format(args.name, seed)))
