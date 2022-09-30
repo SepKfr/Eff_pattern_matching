@@ -98,11 +98,11 @@ for i, seed in enumerate([4293, 1692, 3029]):
 predictions = torch.from_numpy(np.mean(predictions, axis=0))
 
 results = torch.zeros(2, args.pred_len)
-normaliser = test.y_true.abs().mean()
-print(test.y_true.shape)
+normaliser = y_true.abs().mean()
+print(y_true.shape)
 
-print(mse(predictions, test.y_true).item() / normaliser)
-print(mae(predictions, test.y_true).item() / normaliser)
+print(mse(predictions, y_true).item() / normaliser)
+print(mae(predictions, y_true).item() / normaliser)
 
 for j in range(args.pred_len):
 
