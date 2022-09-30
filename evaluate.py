@@ -58,7 +58,7 @@ src_input_size = test.enc.shape[3]
 tgt_input_size = test.dec.shape[3]
 
 predictions = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
-targets_all = test.y_true.cpu().squeeze(-1).detach().numpy()
+targets_all = test.y_true.cpu().detach().numpy()
 n_batches_test = test.enc.shape[0]
 
 mse = nn.MSELoss()
@@ -96,7 +96,6 @@ for i, seed in enumerate([4293, 1692, 3029]):
         pass
 
 predictions = torch.from_numpy(np.mean(predictions, axis=0))
-targets_all = torch.from_numpy(np.mean(targets_all, axis=0))
 
 results = torch.zeros(2, args.pred_len)
 normaliser = targets_all.abs().mean()
