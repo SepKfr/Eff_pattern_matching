@@ -64,34 +64,35 @@ y_true = test.y_true.squeeze(-1).detach().cpu()
 
 mse = nn.MSELoss()
 mae = nn.L1Loss()
+stack_size = 1
+
 
 for i, seed in enumerate([4293, 1692, 3029]):
     try:
-        for stack_size in [1, 3]:
-            for d in d_model:
-                for k in kernel:
-                    d_k = int(d / n_heads)
+        for d in d_model:
+            for k in kernel:
+                d_k = int(d / n_heads)
 
-                    model = Transformer(src_input_size=src_input_size,
-                                        tgt_input_size=tgt_input_size,
-                                        pred_len=pred_len,
-                                        d_model=d,
-                                        d_ff=d * 4,
-                                        d_k=d_k, d_v=d_k, n_heads=n_heads,
-                                        n_layers=stack_size, src_pad_index=0,
-                                        tgt_pad_index=0, device=device,
-                                        attn_type=args.attn_type,
-                                        seed=seed, kernel=k)
+                model = Transformer(src_input_size=src_input_size,
+                                    tgt_input_size=tgt_input_size,
+                                    pred_len=pred_len,
+                                    d_model=d,
+                                    d_ff=d * 4,
+                                    d_k=d_k, d_v=d_k, n_heads=n_heads,
+                                    n_layers=stack_size, src_pad_index=0,
+                                    tgt_pad_index=0, device=device,
+                                    attn_type=args.attn_type,
+                                    seed=seed, kernel=k)
 
-                    checkpoint = torch.load(os.path.join("models_{}_{}".format(args.exp_name, args.pred_len),
-                                            "{}_{}".format(args.name, seed)))
-                    model.load_state_dict(checkpoint['model_state_dict'])
-                    model.eval()
-                    model.to(device)
+                checkpoint = torch.load(os.path.join("models_{}_{}".format(args.exp_name, args.pred_len),
+                                        "{}_{}".format(args.name, seed)))
+                model.load_state_dict(checkpoint['model_state_dict'])
+                model.eval()
+                model.to(device)
 
-                    for j in range(n_batches_test):
-                        output = model(test.enc[j], test.dec[j])
-                        predictions[i, j] = output.squeeze(-1).cpu().detach().numpy()
+                for j in range(n_batches_test):
+                    output = model(test.enc[j], test.dec[j])
+                    predictions[i, j] = output.squeeze(-1).cpu().detach().numpy()
 
     except RuntimeError:
         pass
