@@ -58,7 +58,6 @@ src_input_size = test.enc.shape[3]
 tgt_input_size = test.dec.shape[3]
 
 predictions = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
-targets_all = test.y_true.cpu().detach().numpy()
 n_batches_test = test.enc.shape[0]
 
 mse = nn.MSELoss()
@@ -98,16 +97,16 @@ for i, seed in enumerate([4293, 1692, 3029]):
 predictions = torch.from_numpy(np.mean(predictions, axis=0))
 
 results = torch.zeros(2, args.pred_len)
-normaliser = targets_all.abs().mean()
-print(targets_all[0,0, 0])
+normaliser = test.y_true.abs().mean()
+print(test.y_true[0,0, 0])
 
-print(mse(predictions, targets_all).item() / normaliser)
-print(mae(predictions, targets_all).item() / normaliser)
+print(mse(predictions, test.y_true).item() / normaliser)
+print(mae(predictions, test.y_true).item() / normaliser)
 
 for j in range(args.pred_len):
 
-    results[0, j] = mse(predictions[:, :, j], targets_all[:, :, j]).item()
-    results[1, j] = mae(predictions[:, :, j], targets_all[:, :, j]).item()
+    results[0, j] = mse(predictions[:, :, j], test.y_true[:, :, j]).item()
+    results[1, j] = mae(predictions[:, :, j], test.y_true[:, :, j]).item()
 
 df = pd.DataFrame(results.detach().cpu().numpy())
 df.to_csv("{}_{}_{}.csv".format(args.exp_name, args.name, args.pred_len))
