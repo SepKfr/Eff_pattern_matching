@@ -65,7 +65,7 @@ y_true = test.y_true.squeeze(-1).detach().cpu()
 mse = nn.MSELoss()
 mae = nn.L1Loss()
 
-for i, seed in enumerate([1692, 3029]):
+for i, seed in enumerate([4293, 1692, 3029]):
     try:
         for stack_size in [1, 3]:
             for d in d_model:

@@ -287,27 +287,6 @@ class Train:
 
         print("test loss {:.4f}".format(test_loss))
 
-        self.erros["{}_{}".format(self.name, self.seed)] = list()
-        self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(test_loss)))
-        self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(mae_loss)))
-
-        error_path = "new_Errors_{}_{}.json".format(self.exp_name, self.pred_len)
-
-        if os.path.exists(error_path):
-            with open(error_path) as json_file:
-                json_dat = json.load(json_file)
-                if json_dat.get("{}_{}".format(self.name, self.seed)) is None:
-                    json_dat["{}_{}".format(self.name, self.seed)] = list()
-                json_dat["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(test_loss)))
-                json_dat["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(mae_loss)))
-
-            with open(error_path, "w") as json_file:
-                json.dump(json_dat, json_file)
-        else:
-            with open(error_path, "w") as json_file:
-                json.dump(self.erros, json_file)
-
-
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
