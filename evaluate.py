@@ -1,4 +1,5 @@
 import argparse
+import json
 import random
 
 import numpy as np
@@ -100,8 +101,8 @@ predictions = torch.from_numpy(np.mean(predictions, axis=0))
 results = torch.zeros(2, args.pred_len)
 normaliser = y_true.abs().mean()
 
-print(mse(predictions, y_true).item() / normaliser)
-print(mae(predictions, y_true).item() / normaliser)
+test_loss = mse(predictions, y_true).item() / normaliser
+mae_loss = mae(predictions, y_true).item() / normaliser
 
 for j in range(args.pred_len):
 
@@ -110,3 +111,24 @@ for j in range(args.pred_len):
 
 df = pd.DataFrame(results.detach().cpu().numpy())
 df.to_csv("{}_{}_{}.csv".format(args.exp_name, args.name, args.pred_len))
+
+erros = dict()
+erros["{}".format(args.name)] = list()
+erros["{}".format(args.name)].append(float("{:.5f}".format(test_loss)))
+erros["{}".format(args.name)].append(float("{:.5f}".format(mae_loss)))
+
+error_path = "new_Errors_{}_{}.json".format(args.exp_name, pred_len)
+
+if os.path.exists(error_path):
+    with open(error_path) as json_file:
+        json_dat = json.load(json_file)
+        if json_dat.get("{}".format(args.name)) is None:
+            json_dat["{}".format(args.name)] = list()
+        json_dat["{}".format(args.name)].append(float("{:.5f}".format(test_loss)))
+        json_dat["{}".format(args.name)].append(float("{:.5f}".format(mae_loss)))
+
+    with open(error_path, "w") as json_file:
+        json.dump(json_dat, json_file)
+else:
+    with open(error_path, "w") as json_file:
+        json.dump(erros, json_file)
