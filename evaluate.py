@@ -105,8 +105,8 @@ print(mae(predictions, y_true).item() / normaliser)
 
 for j in range(args.pred_len):
 
-    results[0, j] = mse(predictions[:, :, j], test.y_true[:, :, j]).item()
-    results[1, j] = mae(predictions[:, :, j], test.y_true[:, :, j]).item()
+    results[0, j] = mse(predictions[:, :, j], y_true[:, :, j]).item()
+    results[1, j] = mae(predictions[:, :, j], y_true[:, :, j]).item()
 
 df = pd.DataFrame(results.detach().cpu().numpy())
 df.to_csv("{}_{}_{}.csv".format(args.exp_name, args.name, args.pred_len))
