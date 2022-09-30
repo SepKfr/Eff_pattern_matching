@@ -58,7 +58,7 @@ src_input_size = test.enc.shape[3]
 tgt_input_size = test.dec.shape[3]
 
 predictions = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
-targets_all = np.zeros((3, test.y_true.shape[0], test.y_true.shape[1], test.y_true.shape[2]))
+targets_all = test.y_true.cpu().squeeze(-1).detach().numpy()
 n_batches_test = test.enc.shape[0]
 
 mse = nn.MSELoss()
@@ -91,7 +91,6 @@ for i, seed in enumerate([4293, 1692, 3029]):
                     for j in range(n_batches_test):
                         output = model(test.enc[j], test.dec[j])
                         predictions[i, j] = output.squeeze(-1).cpu().detach().numpy()
-                        targets_all[i, j] = test.y_true[j].cpu().squeeze(-1).detach().numpy()
 
     except RuntimeError:
         pass
