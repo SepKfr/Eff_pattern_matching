@@ -101,7 +101,7 @@ targets_all = torch.from_numpy(np.mean(targets_all, axis=0))
 
 results = torch.zeros(2, args.pred_len)
 normaliser = targets_all.abs().mean()
-print(targets_all)
+print(targets_all[0,0, 0])
 
 print(mse(predictions, targets_all).item() / normaliser)
 print(mae(predictions, targets_all).item() / normaliser)
