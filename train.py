@@ -167,12 +167,12 @@ class Train:
             os.makedirs(self.model_path)
 
         d_model = trial.suggest_categorical("d_model", [16, 32])
-        w_steps = trial.suggest_categorical("w_steps", [1000])
+        w_steps = trial.suggest_categorical("w_steps", [1000, 4000])
         stack_size = trial.suggest_categorical("stack_size", [1])
 
         n_heads = self.model_params['num_heads']
 
-        kernel = [9] if self.attn_type == "attn_conv" else [1]
+        kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
         kernel = trial.suggest_categorical("kernel", kernel)
 
         if [d_model, kernel, stack_size] in self.param_history:
@@ -252,14 +252,12 @@ class Train:
 
         self.best_model.eval()
         predictions = np.zeros((self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2]))
-        targets_all = np.zeros((self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2]))
         n_batches_test = self.test.enc.shape[0]
 
         for j in range(n_batches_test):
 
             output = self.best_model(self.test.enc[j], self.test.dec[j])
             predictions[j] = output.squeeze(-1).cpu().detach().numpy()
-            targets_all[j] = self.test.y_true[j].cpu().squeeze(-1).detach().numpy()
             '''output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
@@ -276,13 +274,12 @@ class Train:
                 targets_all[j, :targets.shape[0], :] = targets'''
 
         predictions = torch.from_numpy(predictions)
-        targets_all = torch.from_numpy(targets_all)
-        test_loss = self.criterion(predictions, targets_all).item()
-        normaliser = targets_all.abs().mean()
+        test_loss = self.criterion(predictions, self.test.y_true).item()
+        normaliser = self.test.y_true.abs().mean()
         test_loss = test_loss / normaliser
 
-        mae_loss = self.mae_loss(predictions, targets_all).item()
-        normaliser = targets_all.abs().mean()
+        mae_loss = self.mae_loss(predictions, self.test.y_true).item()
+        normaliser = self.test.y_true.abs().mean()
         mae_loss = mae_loss / normaliser
 
         print("test loss {:.4f}".format(test_loss))

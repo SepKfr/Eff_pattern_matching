@@ -57,4 +57,4 @@ class camelFormatter(ElectricityFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 32000, 3200
+        return 32000, 3840
