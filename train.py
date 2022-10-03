@@ -127,7 +127,7 @@ class Train:
 
         trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3], self.device)
         valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3], self.device)
-        test = ModelData(test_batching[0], test_batching[1], test_batching[2], test_batching[3], self.device)
+        test = ModelData(test_batching[0], test_batching[1], test_batching[2].squeeze(-1), test_batching[3], self.device)
 
         return trn, valid, test
 
@@ -175,9 +175,9 @@ class Train:
         kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
         kernel = trial.suggest_categorical("kernel", kernel)
 
-        if [d_model, kernel, stack_size] in self.param_history:
+        if [d_model, kernel, stack_size, w_steps] in self.param_history:
             raise optuna.exceptions.TrialPruned()
-        self.param_history.append([d_model, kernel, stack_size])
+        self.param_history.append([d_model, kernel, stack_size, w_steps])
 
         d_k = int(d_model / n_heads)
 
@@ -309,7 +309,7 @@ def main():
     parser = argparse.ArgumentParser(description="preprocess argument parser")
     parser.add_argument("--attn_type", type=str, default='basic_attn')
     parser.add_argument("--name", type=str, default="KittyCat")
-    parser.add_argument("--exp_name", type=str, default='covid')
+    parser.add_argument("--exp_name", type=str, default='traffic')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--pr", type=float, default=0.8)
