@@ -274,12 +274,13 @@ class Train:
                 targets_all[j, :targets.shape[0], :] = targets'''
 
         predictions = torch.from_numpy(predictions)
-        test_loss = self.criterion(predictions, self.test.y_true).item()
-        normaliser = self.test.y_true.abs().mean()
+        test_y = self.test.y_true.cpu()
+        test_loss = self.criterion(predictions, test_y).item()
+        normaliser = test_y.abs().mean()
         test_loss = test_loss / normaliser
 
-        mae_loss = self.mae_loss(predictions, self.test.y_true).item()
-        normaliser = self.test.y_true.abs().mean()
+        mae_loss = self.mae_loss(predictions, test_y).item()
+        normaliser = test_y.abs().mean()
         mae_loss = mae_loss / normaliser
 
         print("test loss {:.4f}".format(test_loss))
