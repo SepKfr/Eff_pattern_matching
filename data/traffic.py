@@ -155,7 +155,7 @@ class TrafficFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 9 * 24 + self.pred_len,
+            'total_time_steps': 10 * 24 + self.pred_len,
             'num_encoder_steps': 5 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
@@ -170,7 +170,7 @@ class TrafficFormatter(GenericDataFormatter):
 
         model_params = {
             'hidden_layer_size': [8],
-            'minibatch_size': [1024],
+            'minibatch_size': [512],
             'num_heads': 8,
             'stack_size': [1],
             'context_lengths': [1, 3, 6, 9]
