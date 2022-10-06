@@ -228,10 +228,14 @@ class Train:
             for j in range(n_batches_valid):
 
                 if self.p_model:
-                    outputs, _ = model(self.valid.enc[j], self.valid.dec[j])
+                    output, dist = model(self.valid.enc[j], self.valid.dec[j])
+                    likelihood = dist.log_prob(self.valid.y_true[j])
+                    gloss = -torch.mean(likelihood)
+                    loss = self.criterion(output, self.valid.y_true[j]) + gloss
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])
-                loss = self.criterion(outputs, self.valid.y_true[j])
+                    loss = self.criterion(outputs, self.valid.y_true[j])
+
                 test_loss += loss.item()
 
             print("val loss: {:.4f}".format(test_loss))
