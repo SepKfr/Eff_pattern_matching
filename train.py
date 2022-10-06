@@ -77,6 +77,7 @@ class Train:
         self.attn_type = args.attn_type
         self.criterion = nn.MSELoss()
         self.mae_loss = nn.L1Loss()
+        self.p_model = args.p_model
         self.num_epochs = self.params['num_epochs']
         self.name = args.name
         self.pr = args.pr
@@ -104,7 +105,7 @@ class Train:
                             n_layers=stack_size, src_pad_index=0,
                             tgt_pad_index=0, device=self.device,
                             attn_type=self.attn_type,
-                            seed=self.seed, kernel=kernel)
+                            seed=self.seed, kernel=kernel, p_model=self.p_model)
         model.to(self.device)
 
         return model
@@ -190,7 +191,7 @@ class Train:
                             n_layers=stack_size, src_pad_index=0,
                             tgt_pad_index=0, device=self.device,
                             attn_type=self.attn_type,
-                            seed=self.seed, kernel=kernel)
+                            seed=self.seed, kernel=kernel, p_model=self.p_model)
         model.to(self.device)
 
         optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, w_steps)
@@ -205,8 +206,14 @@ class Train:
             total_loss = 0
             for batch_id in range(n_batches_train):
 
-                output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
+                if self.p_model:
+                    output, dist = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    likelihood = dist.log_prob(self.train.y_true[batch_id])
+                    gloss = -torch.mean(likelihood)
+                    loss = self.criterion(output, self.train.y_true[batch_id]) + gloss
+                else:
+                    output = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    loss = self.criterion(output, self.train.y_true[batch_id])
 
                 total_loss += loss.item()
 
@@ -220,8 +227,11 @@ class Train:
             test_loss = 0
             for j in range(n_batches_valid):
 
-                outputs = model(self.valid.enc[j], self.valid.dec[j])
-                loss = self.criterion(outputs, self.valid.y_true[j]) + self.mae_loss(outputs, self.valid.y_true[j])
+                if self.p_model:
+                    outputs, _ = model(self.valid.enc[j], self.valid.dec[j])
+                else:
+                    outputs = model(self.valid.enc[j], self.valid.dec[j])
+                loss = self.criterion(outputs, self.valid.y_true[j])
                 test_loss += loss.item()
 
             print("val loss: {:.4f}".format(test_loss))
@@ -309,13 +319,14 @@ def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
     parser.add_argument("--attn_type", type=str, default='basic_attn')
-    parser.add_argument("--name", type=str, default="KittyCat")
+    parser.add_argument("--name", type=str, default="basic_attn")
     parser.add_argument("--exp_name", type=str, default='traffic')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--pr", type=float, default=0.8)
     parser.add_argument("--n_trials", type=int, default=100)
     parser.add_argument("--DataParallel", type=bool, default=False)
+    parser.add_argument("--p_model", type=bool, default=False)
     args = parser.parse_args()
 
     np.random.seed(args.seed)

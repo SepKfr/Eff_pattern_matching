@@ -253,11 +253,29 @@ class Decoder(nn.Module):
         return dec_outputs, dec_self_attns, dec_enc_attns
 
 
+class process_model(nn.Module):
+    def __init__(self, d, device):
+        super(process_model, self).__init__()
+        self.mu = nn.Linear(d, 1)
+        self.var = nn.Linear(d, 1)
+        self.softPlus = nn.Softplus()
+
+    def forward(self, x):
+
+        mu = self.mu(x)
+        var = self.softPlus(self.var(x))
+        g = torch.distributions.normal.Normal(mu, var)
+        pred = g.sample()
+        sample_mu = torch.median(pred, dim=0)[0]
+        sample_sigma = torch.std(pred, dim=0)
+        return pred, sample_mu, sample_sigma
+
+
 class Transformer(nn.Module):
 
     def __init__(self, src_input_size, tgt_input_size, pred_len, d_model,
                  d_ff, d_k, d_v, n_heads, n_layers, src_pad_index,
-                 tgt_pad_index, device, attn_type, kernel, seed):
+                 tgt_pad_index, device, attn_type, kernel, seed, p_model):
         super(Transformer, self).__init__()
 
         torch.manual_seed(seed)
@@ -280,10 +298,14 @@ class Transformer(nn.Module):
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)
+        self.porj_to_d_enc = nn.Linear(1, d_model)
+        self.porj_to_d_dec = nn.Linear(1, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
+        self.process = process_model(d_model, device)
         self.attn_type = attn_type
         self.pred_len = pred_len
         self.device = device
+        self.p_model = p_model
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -292,9 +314,21 @@ class Transformer(nn.Module):
     def forward(self, enc_inputs, dec_inputs):
 
         enc_inputs = self.enc_embedding(enc_inputs)
+        if self.p_model:
+            enc_inputs, _, _ = self.process(enc_inputs)
+            enc_inputs = self.porj_to_d_enc(enc_inputs)
+
         dec_inputs = self.dec_embedding(dec_inputs)
+
+        if self.p_model:
+            pred, mu, sigma = self.process(dec_inputs)
+            dec_inputs = self.porj_to_d_dec(pred)
+            dist = torch.distributions.normal.Normal(mu[-self.pred_len:, :], sigma[-self.pred_len:, :])
+
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
         dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
         dec_logits = self.projection(dec_outputs)
         outputs = dec_logits[:, -self.pred_len:, :]
+        if self.p_model:
+            return outputs, dist
         return outputs
