@@ -256,8 +256,8 @@ class Decoder(nn.Module):
 class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
-        self.mu = nn.Linear(d, 1)
-        self.var = nn.Linear(d, 1)
+        self.mu = nn.Linear(d, 1, device=device)
+        self.var = nn.Linear(d, 1, device=device)
         self.softPlus = nn.Softplus()
 
     def forward(self, x):
