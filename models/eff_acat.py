@@ -314,21 +314,17 @@ class Transformer(nn.Module):
     def forward(self, enc_inputs, dec_inputs):
 
         enc_inputs = self.enc_embedding(enc_inputs)
+
         if self.p_model:
-            enc_inputs, _, _ = self.process(enc_inputs)
+
+            enc_inputs, mu, sigma = self.process(enc_inputs)
             enc_inputs = self.porj_to_d_enc(enc_inputs)
-
-        dec_inputs = self.dec_embedding(dec_inputs)
-
-        if self.p_model:
-            pred, mu, sigma = self.process(dec_inputs)
-            dec_inputs = self.porj_to_d_dec(pred)
             dist = torch.distributions.normal.Normal(mu[-self.pred_len:, :], sigma[-self.pred_len:, :])
 
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
-        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
-        dec_logits = self.projection(dec_outputs)
-        outputs = dec_logits[:, -self.pred_len:, :]
+        enc_outputs = self.projection(enc_outputs)
+        outputs = enc_outputs[:, -self.pred_len:, :]
+
         if self.p_model:
             return outputs, dist
         return outputs

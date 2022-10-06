@@ -322,15 +322,15 @@ class Train:
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='basic_attn')
-    parser.add_argument("--name", type=str, default="basic_attn")
+    parser.add_argument("--attn_type", type=str, default='KittyCat')
+    parser.add_argument("--name", type=str, default="KittyCat")
     parser.add_argument("--exp_name", type=str, default='traffic')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--pr", type=float, default=0.8)
     parser.add_argument("--n_trials", type=int, default=100)
     parser.add_argument("--DataParallel", type=bool, default=False)
-    parser.add_argument("--p_model", type=bool, default=False)
+    parser.add_argument("--p_model", type=bool, default=True)
     args = parser.parse_args()
 
     np.random.seed(args.seed)
