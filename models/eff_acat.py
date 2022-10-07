@@ -315,15 +315,21 @@ class Transformer(nn.Module):
             if isinstance(m, nn.Linear):
                 nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
 
+    def nll(self, loc, scale, value):
+
+        var = (scale ** 2)
+        log_scale = torch.log(scale)
+        loss = -((value - loc) ** 2) / (2 * var) - log_scale
+        loss = torch.mean(loss, dim=[0, 1, 2]) - math.log(math.sqrt(2 * math.pi))
+        return -loss
+
     def forward(self, enc_inputs, dec_inputs):
 
         if self.p_model:
 
             enc_inputs = self.enc_embedding(enc_inputs)
             enc_outputs, mu, sigma = self.process(enc_inputs)
-            dist = torch.distributions.normal.Normal(mu, sigma)
-            likelihood = dist.log_prob(enc_inputs)
-            gloss = -torch.mean(likelihood)
+            gloss = self.nll(mu, sigma, enc_inputs)
 
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
