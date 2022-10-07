@@ -256,13 +256,14 @@ class Decoder(nn.Module):
 
 
 class process_model(nn.Module):
-    def __init__(self, d, device):
+    def __init__(self, d, device, dr=0.1):
         super(process_model, self).__init__()
         self.mut = nn.Linear(d, 2*d, device=device)
         self.proj_out = nn.Linear(d, d, device=device)
         self.softPlus = nn.Softplus()
         self.d = d
         self.device = device
+        self.dropout = nn.Dropout(dr)
 
     def forward(self, x):
 
@@ -271,7 +272,7 @@ class process_model(nn.Module):
         sigma = self.softPlus(sigma)
         g = mu + sigma * torch.normal(torch.zeros(mu.shape, device=self.device),
                                       torch.ones(sigma.shape, device=self.device))
-        pred = self.proj_out(g)
+        pred = self.dropout(self.proj_out(g))
         mu = torch.median(pred, dim=0)[0]
         sigma = pred.std(dim=0)
         return pred, mu, sigma
