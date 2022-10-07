@@ -325,7 +325,7 @@ def main():
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--pr", type=float, default=0.8)
     parser.add_argument("--n_trials", type=int, default=100)
-    parser.add_argument("--DataParallel", type=bool, default=False)
+    parser.add_argument("--DataParallel", type=bool, default=True)
     parser.add_argument("--p_model", type=str, default="True")
 
     args = parser.parse_args()
