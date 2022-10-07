@@ -226,8 +226,8 @@ class Train:
             for j in range(n_batches_valid):
 
                 if self.p_model:
-                    output, _ = model(self.valid.enc[j], self.valid.dec[j])
-                    loss = self.criterion(output, self.valid.y_true[j])
+                    output, gloss = model(self.valid.enc[j], self.valid.dec[j])
+                    loss = self.criterion(output, self.valid.y_true[j]) + gloss
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])
                     loss = self.criterion(outputs, self.valid.y_true[j])

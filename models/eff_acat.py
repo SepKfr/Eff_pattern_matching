@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 import numpy as np
@@ -256,21 +258,21 @@ class Decoder(nn.Module):
 class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
-        self.mu = nn.Linear(d, 1, device=device)
-        self.var = nn.Linear(d, 1, device=device)
-        self.proj_out = nn.Linear(1, d, device=device)
+        self.mut = nn.Linear(d, 2*d, device=device)
+        self.proj_out = nn.Linear(d, d, device=device)
         self.softPlus = nn.Softplus()
+        self.d = d
 
     def forward(self, x):
 
-        mu = self.mu(x)
-        var = self.softPlus(self.var(x))
-        g = torch.distributions.normal.Normal(mu, var)
-        pred = g.sample()
-        sample_mu = torch.median(pred, dim=0)[0]
-        sample_sigma = torch.std(pred, dim=0)
-        pred = self.proj_out(pred)
-        return pred, sample_mu, sample_sigma
+        musig = self.mut(x)
+        mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
+        sigma = self.softPlus(sigma)
+        g = mu + sigma * torch.normal(torch.zeros(mu.shape), torch.ones(sigma.shape))
+        pred = self.proj_out(g)
+        mu = torch.median(pred, dim=0)[0]
+        sigma = pred.std(dim=0)
+        return pred, mu, sigma
 
 
 class Transformer(nn.Module):
@@ -320,6 +322,7 @@ class Transformer(nn.Module):
             dist = torch.distributions.normal.Normal(mu, sigma)
             likelihood = dist.log_prob(enc_inputs)
             gloss = -torch.mean(likelihood)
+            print(gloss)
 
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
