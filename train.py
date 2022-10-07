@@ -226,8 +226,8 @@ class Train:
             for j in range(n_batches_valid):
 
                 if self.p_model:
-                    output, gloss = model(self.valid.enc[j], self.valid.dec[j])
-                    loss = self.criterion(output, self.valid.y_true[j]) + gloss
+                    output, _ = model(self.valid.enc[j], self.valid.dec[j])
+                    loss = self.criterion(output, self.valid.y_true[j])
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])
                     loss = self.criterion(outputs, self.valid.y_true[j])
@@ -326,7 +326,7 @@ def main():
     parser.add_argument("--pr", type=float, default=0.8)
     parser.add_argument("--n_trials", type=int, default=100)
     parser.add_argument("--DataParallel", type=bool, default=False)
-    parser.add_argument("--p_model", type=str, default="False")
+    parser.add_argument("--p_model", type=str, default="True")
 
     args = parser.parse_args()
 
