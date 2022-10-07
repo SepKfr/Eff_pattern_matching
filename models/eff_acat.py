@@ -296,10 +296,10 @@ class Transformer(nn.Module):
             device=device,
             attn_type=attn_type, kernel=kernel, seed=seed)
 
-        self.enc_embedding = nn.Linear(src_input_size, d_model)
+        self.enc_embedding = nn.Linear(1 if p_model else src_input_size, d_model)
+        self.pre_embedding = nn.Linear(src_input_size, d_model)
+        self.post_embedding = nn.Linear(src_input_size, 1)
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)
-        self.porj_to_d_enc = nn.Linear(1, d_model)
-        self.porj_to_d_dec = nn.Linear(1, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
         self.process = process_model(d_model, device)
         self.attn_type = attn_type
@@ -313,18 +313,21 @@ class Transformer(nn.Module):
 
     def forward(self, enc_inputs, dec_inputs):
 
-        enc_inputs = self.enc_embedding(enc_inputs)
-
         if self.p_model:
 
-            enc_inputs, mu, sigma = self.process(enc_inputs)
-            enc_inputs = self.porj_to_d_enc(enc_inputs)
-            dist = torch.distributions.normal.Normal(mu[-self.pred_len:, :], sigma[-self.pred_len:, :])
+            enc_outputs, mu, sigma = self.process(self.pre_embedding(enc_inputs))
+            dist = torch.distributions.normal.Normal(mu, sigma)
+            likelihood = dist.log_prob(self.post_embedding(enc_inputs))
+            gloss = -torch.mean(likelihood)
+            enc_outputs = self.enc_embedding(enc_outputs)
 
-        enc_outputs, enc_self_attns = self.encoder(enc_inputs)
+        else:
+            enc_outputs = self.enc_embedding(enc_inputs)
+
+        enc_outputs, enc_self_attns = self.encoder(enc_outputs)
         enc_outputs = self.projection(enc_outputs)
         outputs = enc_outputs[:, -self.pred_len:, :]
 
         if self.p_model:
-            return outputs, dist
+            return outputs, gloss
         return outputs

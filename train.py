@@ -77,7 +77,7 @@ class Train:
         self.attn_type = args.attn_type
         self.criterion = nn.MSELoss()
         self.mae_loss = nn.L1Loss()
-        self.p_model = args.p_model
+        self.p_model = True if args.p_model == "True" else False
         self.num_epochs = self.params['num_epochs']
         self.name = args.name
         self.pr = args.pr
@@ -207,9 +207,7 @@ class Train:
             for batch_id in range(n_batches_train):
 
                 if self.p_model:
-                    output, dist = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                    likelihood = dist.log_prob(self.train.y_true[batch_id])
-                    gloss = -torch.mean(likelihood)
+                    output, gloss = model(self.train.enc[batch_id], self.train.dec[batch_id])
                     loss = self.criterion(output, self.train.y_true[batch_id]) + gloss
                 else:
                     output = model(self.train.enc[batch_id], self.train.dec[batch_id])
@@ -228,9 +226,7 @@ class Train:
             for j in range(n_batches_valid):
 
                 if self.p_model:
-                    output, dist = model(self.valid.enc[j], self.valid.dec[j])
-                    likelihood = dist.log_prob(self.valid.y_true[j])
-                    gloss = -torch.mean(likelihood)
+                    output, gloss = model(self.valid.enc[j], self.valid.dec[j])
                     loss = self.criterion(output, self.valid.y_true[j]) + gloss
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])
@@ -330,7 +326,8 @@ def main():
     parser.add_argument("--pr", type=float, default=0.8)
     parser.add_argument("--n_trials", type=int, default=100)
     parser.add_argument("--DataParallel", type=bool, default=False)
-    parser.add_argument("--p_model", type=bool, default=True)
+    parser.add_argument("--p_model", type=str, default="False")
+
     args = parser.parse_args()
 
     np.random.seed(args.seed)
