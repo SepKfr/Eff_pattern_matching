@@ -262,13 +262,15 @@ class process_model(nn.Module):
         self.proj_out = nn.Linear(d, d, device=device)
         self.softPlus = nn.Softplus()
         self.d = d
+        self.device = device
 
     def forward(self, x):
 
         musig = self.mut(x)
         mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
         sigma = self.softPlus(sigma)
-        g = mu + sigma * torch.normal(torch.zeros(mu.shape), torch.ones(sigma.shape))
+        g = mu + sigma * torch.normal(torch.zeros(mu.shape, device=self.device),
+                                      torch.ones(sigma.shape, device=self.device))
         pred = self.proj_out(g)
         mu = torch.median(pred, dim=0)[0]
         sigma = pred.std(dim=0)
@@ -322,7 +324,6 @@ class Transformer(nn.Module):
             dist = torch.distributions.normal.Normal(mu, sigma)
             likelihood = dist.log_prob(enc_inputs)
             gloss = -torch.mean(likelihood)
-            print(gloss)
 
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
