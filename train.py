@@ -319,6 +319,7 @@ class Train:
             with open(error_path, "w") as json_file:
                 json.dump(self.erros, json_file)
 
+
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")

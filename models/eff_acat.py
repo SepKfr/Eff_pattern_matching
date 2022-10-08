@@ -267,14 +267,11 @@ class process_model(nn.Module):
     def forward(self, x):
 
         musig = self.mut(x)
-        mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
+        mu, sigma = musig[:, :, :self.d], self.softPlus(musig[:, :, -self.d:])
         sigma = self.softPlus(sigma)
-        g = mu + sigma * torch.normal(torch.zeros(mu.shape, device=self.device),
-                                      torch.ones(sigma.shape, device=self.device))
-        pred = self.proj_out(g)
-        mu = torch.median(pred, dim=0)[0]
-        sigma = pred.std(dim=0)
-        return pred, mu, sigma
+        g = torch.distributions.normal.Normal(mu, sigma)
+        pred = g.sample()
+        return pred, g
 
 
 class Transformer(nn.Module):
@@ -315,24 +312,18 @@ class Transformer(nn.Module):
             if isinstance(m, nn.Linear):
                 nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
 
-    def nll(self, loc, scale, value):
-
-        var = (scale ** 2)
-        log_scale = torch.log(scale)
-        loss = -((value - loc) ** 2) / (2 * var) - log_scale
-        loss = torch.mean(loss, dim=[0, 1, 2]) - math.log(math.sqrt(2 * math.pi))
-        kl = 0.5 * (loc ** 2 + scale ** 2 - log_scale - 1)
-        kl = torch.mean(kl, dim=[0, 1])
-        loss = loss - kl
-        return -loss
-
     def forward(self, enc_inputs, dec_inputs):
 
         if self.p_model:
 
             enc_inputs = self.enc_embedding(enc_inputs)
-            enc_outputs, mu, sigma = self.process(enc_inputs)
-            gloss = self.nll(mu, sigma, enc_inputs)
+            enc_outputs, dist = self.process(enc_inputs)
+            likelihood = dist.log_prob(enc_inputs)
+            loc = torch.mean(enc_outputs, dim=0)[0]
+            scale = enc_outputs.std(dim=0)
+            log_scale = torch.log(scale)
+            kl = 0.5 * (loc ** 2 + scale ** 2 - log_scale - 1)
+            gloss = -(torch.mean(likelihood) - torch.mean(kl))
 
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
