@@ -301,7 +301,7 @@ class Transformer(nn.Module):
             device=device,
             attn_type=attn_type, kernel=kernel, seed=seed)
 
-        self.enc_embedding = nn.Linear(src_input_size-1 if p_model else src_input_size, d_model)
+        self.enc_embedding = nn.Linear(src_input_size, d_model)
         self.trip_embedding = nn.Linear(1, d_model)
         self.post_embedding = nn.Linear(src_input_size, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
@@ -324,7 +324,7 @@ class Transformer(nn.Module):
 
         if self.p_model:
 
-            enc_outputs = self.enc_embedding(enc_inputs[:, :, :-1])
+            enc_outputs = self.enc_embedding(enc_inputs)
             trip_inputs = self.trip_embedding(enc_inputs[:, :, -1:])
             trip_outputs, mu, sigma = self.process(enc_outputs)
             dist = torch.distributions.normal.Normal(mu, sigma)
