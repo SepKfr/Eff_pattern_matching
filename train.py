@@ -340,7 +340,7 @@ def main():
     torch.manual_seed(args.seed)
 
     data_csv_path = "{}.csv".format(args.exp_name)
-    raw_data = pd.read_csv(data_csv_path)
+    raw_data = pd.read_csv(data_csv_path, dtype={'date':str})
 
     for pred_len in [24, 48, 72, 96]:
         Train(raw_data, args, pred_len)
