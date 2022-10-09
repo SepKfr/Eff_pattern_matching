@@ -260,7 +260,6 @@ class process_model(nn.Module):
         super(process_model, self).__init__()
 
         self.mut = nn.Linear(d, 2*d, device=device)
-        self.proj_out = nn.Linear(d, d, device=device)
         self.softPlus = nn.Softplus()
         self.d = d
         self.device = device
@@ -272,7 +271,7 @@ class process_model(nn.Module):
         sigma = self.softPlus(sigma)
         g = mu + sigma * torch.normal(torch.zeros(mu.shape, device=self.device),
                                       torch.ones(sigma.shape, device=self.device))
-        pred = self.proj_out(g)
+        pred = g
         return pred, mu, sigma
 
 
@@ -301,8 +300,10 @@ class Transformer(nn.Module):
             device=device,
             attn_type=attn_type, kernel=kernel, seed=seed)
 
-        self.enc_embedding = nn.Linear(src_input_size, d_model)
-        self.dec_embedding = nn.Linear(tgt_input_size, d_model)
+        self.enc_embedding = nn.Linear(src_input_size-1 if p_model else src_input_size, d_model)
+        self.trip_embedding = nn.Linear(1, d_model)
+        self.trip_post_embedding = nn.Linear(d_model, 1)
+        self.post_embedding = nn.Linear(src_input_size, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
         self.process = process_model(d_model, device)
         self.attn_type = attn_type
@@ -323,9 +324,13 @@ class Transformer(nn.Module):
 
         if self.p_model:
 
-            enc_inputs = self.enc_embedding(enc_inputs)
-            enc_outputs, mu, sigma = self.process(enc_inputs)
-            gloss = self.nll(sigma, enc_inputs, enc_outputs)
+            enc_outputs = self.enc_embedding(enc_inputs[:, :, :-1])
+            trip_inputs = self.trip_embedding(enc_inputs[:, :, -1:])
+            trip_outputs, mu, sigma = self.process(enc_outputs)
+            gloss = self.nll(sigma, trip_outputs, trip_inputs)
+            trip_outputs = self.trip_post_embedding(trip_outputs)
+            enc_outputs = torch.cat([enc_inputs[:, :, :-1], trip_outputs], dim=-1)
+            enc_outputs = self.post_embedding(enc_outputs)
 
         else:
 

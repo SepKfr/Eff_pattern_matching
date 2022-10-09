@@ -15,6 +15,7 @@ class CovidFormatter(GenericDataFormatter):
         ('PEOPLE_POSITIVE_NEW_CASES_COUNT', DataTypes.REAL_VALUED, InputTypes.TARGET),
         ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('days_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('Number of Trips', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
     ]
 
     # Default params
@@ -23,7 +24,7 @@ class CovidFormatter(GenericDataFormatter):
 
         fixed_params = {
             'total_time_steps': 8 * 24 + self.pred_len,
-            'num_encoder_steps': 4 * 24,
+            'num_encoder_steps': 8 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,
@@ -37,7 +38,7 @@ class CovidFormatter(GenericDataFormatter):
 
         model_params = {
             'hidden_layer_size': [32, 64],
-            'minibatch_size': [256],
+            'minibatch_size': [512],
             'num_heads': 8,
             'stack_size': [1],
             'context_lengths': [1, 3, 6, 9]
@@ -52,4 +53,4 @@ class CovidFormatter(GenericDataFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 32000, 3840
+        return 51200, 5120
