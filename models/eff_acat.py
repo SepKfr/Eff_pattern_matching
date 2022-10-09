@@ -273,8 +273,6 @@ class process_model(nn.Module):
         g = mu + sigma * torch.normal(torch.zeros(mu.shape, device=self.device),
                                       torch.ones(sigma.shape, device=self.device))
         pred = self.proj_out(g)
-        mu = torch.median(pred, dim=0)[0]
-        sigma = pred.std(dim=0)
         return pred, mu, sigma
 
 
@@ -316,12 +314,10 @@ class Transformer(nn.Module):
             if isinstance(m, nn.Linear):
                 nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
 
-    def nll(self, loc, scale, value):
+    def nll(self, var, target, inpt):
 
-        var = (scale ** 2)
-        log_scale = math.log(scale)
-        loss = -torch.mean((value - loc) ** 2) / (2 * var) - log_scale - math.log(math.sqrt(2 * math.pi))
-        return -loss
+        ngll = nn.GaussianNLLLoss()
+        return ngll(inpt, target, var)
 
     def forward(self, enc_inputs, dec_inputs):
 
@@ -329,9 +325,10 @@ class Transformer(nn.Module):
 
             enc_inputs = self.enc_embedding(enc_inputs)
             enc_outputs, mu, sigma = self.process(enc_inputs)
-            gloss = self.nll(mu, torch.mean(sigma), enc_inputs)
+            gloss = self.nll(sigma, enc_inputs, enc_outputs)
 
         else:
+
             enc_outputs = self.enc_embedding(enc_inputs)
 
         enc_outputs, enc_self_attns = self.encoder(enc_outputs)
