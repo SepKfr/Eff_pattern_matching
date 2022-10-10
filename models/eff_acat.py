@@ -302,7 +302,7 @@ class Transformer(nn.Module):
             attn_type=attn_type, kernel=kernel, seed=seed)
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
-        self.trip_embedding = nn.Linear(1, d_model)
+        self.target_embedding = nn.Linear(1, d_model)
         self.post_embedding = nn.Linear(src_input_size, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
         self.process = process_model(d_model, device)
@@ -315,21 +315,16 @@ class Transformer(nn.Module):
             if isinstance(m, nn.Linear):
                 nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
 
-    def nll(self, var, target, inpt):
-
-        ngll = nn.GaussianNLLLoss()
-        return ngll(inpt, target, var)
-
     def forward(self, enc_inputs, dec_inputs):
 
         if self.p_model:
 
             enc_outputs = self.enc_embedding(enc_inputs)
-            trip_inputs = self.trip_embedding(enc_inputs[:, :, -1:])
-            trip_outputs, mu, sigma = self.process(enc_outputs)
+            target_inputs = self.target_embedding(enc_inputs[:, :, :1])
+            target_outputs, mu, sigma = self.process(enc_outputs)
             dist = torch.distributions.normal.Normal(mu, sigma)
-            gloss = -torch.mean(dist.log_prob(trip_inputs))
-            enc_outputs = torch.cat([enc_inputs[:, :, :-1], trip_outputs], dim=-1)
+            gloss = -torch.mean(dist.log_prob(target_inputs))
+            enc_outputs = torch.cat([target_outputs, enc_inputs[:, :, 1:]], dim=-1)
             enc_outputs = self.post_embedding(enc_outputs)
 
         else:
