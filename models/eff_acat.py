@@ -259,8 +259,7 @@ class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
 
-        self.mut = nn.Linear(d, 2*d, device=device)
-        self.proj_out = nn.Linear(d, 1, device=device)
+        self.mut = nn.Linear(d, 2, device=device)
         self.softPlus = nn.Softplus()
         self.d = d
         self.device = device
@@ -268,11 +267,12 @@ class process_model(nn.Module):
     def forward(self, x):
 
         musig = self.mut(x)
-        mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
+        mu, sigma = musig[:, :, :1], musig[:, :, 1:]
         sigma = self.softPlus(sigma)
-        dist = mu + sigma * torch.normal(torch.zeros_like(mu, device=self.device),
-                                         torch.zeros_like(sigma, device=self.device))
-        pred = self.proj_out(dist)
+        dist = torch.distributions.normal.Normal(mu, sigma)
+        pred = dist.sample()
+        mu = torch.mean(pred, dim=0)[0]
+        sigma = pred.std(dim=0)
         return pred, mu, sigma
 
 
@@ -320,9 +320,10 @@ class Transformer(nn.Module):
         if self.p_model:
 
             enc_outputs = self.enc_embedding(enc_inputs)
-            target_inputs = self.target_embedding(enc_inputs[:, :, :1])
+            target_inputs = enc_inputs[:, :, :1]
             target_outputs, mu, sigma = self.process(enc_outputs)
-            gloss = torch.nn.GaussianNLLLoss()(mu, target_inputs, sigma)
+            dist = torch.distributions.normal.Normal(mu, sigma)
+            gloss = -torch.mean(dist.log_prob(target_inputs))
             enc_outputs = torch.cat([target_outputs, enc_inputs[:, :, 1:]], dim=-1)
             enc_outputs = self.post_embedding(enc_outputs)
 
