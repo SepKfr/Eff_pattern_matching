@@ -269,12 +269,8 @@ class process_model(nn.Module):
         musig = self.mut(x)
         mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
         sigma = self.softPlus(sigma)
-        dist = torch.distributions.normal.Normal(mu, sigma)
-        pred = dist.sample()
-        mu = torch.mean(pred, dim=0)[0]
-        sigma = pred.std(dim=0)
 
-        return pred, mu, sigma
+        return mu, sigma
 
 
 class Transformer(nn.Module):
@@ -303,7 +299,6 @@ class Transformer(nn.Module):
             attn_type=attn_type, kernel=kernel, seed=seed)
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
-        self.post_embedding = nn.Linear(d_model, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
         self.process = process_model(d_model, device)
         self.attn_type = attn_type
@@ -319,10 +314,10 @@ class Transformer(nn.Module):
 
         if self.p_model:
 
-            enc_inputs = self.enc_embedding(enc_inputs)
-            enc_outputs, mu, sigma = self.process(enc_inputs)
+            enc_outputs = self.enc_embedding(enc_inputs)
+            mu, sigma = self.process(enc_outputs)
             dist = torch.distributions.normal.Normal(mu, sigma)
-            gloss = -torch.mean(dist.log_prob(enc_inputs))
+            gloss = -torch.mean(dist.log_prob(enc_outputs))
 
         else:
 
