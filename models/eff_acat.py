@@ -321,14 +321,10 @@ class Transformer(nn.Module):
 
         if self.p_model:
 
-            enc_outputs = self.enc_embedding(enc_inputs)
-            target_inputs = self.target_embedding(enc_inputs[:, :, :1])
-            target_outputs, mu, sigma = self.process(enc_outputs)
+            enc_inputs = self.enc_embedding(enc_inputs)
+            enc_outputs, mu, sigma = self.process(enc_inputs)
             dist = torch.distributions.normal.Normal(mu, sigma)
-            gloss = -torch.mean(dist.log_prob(target_inputs))
-            target_outputs = self.proj_out(target_outputs)
-            enc_outputs = torch.cat([target_outputs, enc_inputs[:, :, 1:]], dim=-1)
-            enc_outputs = self.post_embedding(enc_outputs)
+            gloss = -torch.mean(dist.log_prob(enc_inputs))
 
         else:
 
