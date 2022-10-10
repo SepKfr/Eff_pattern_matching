@@ -227,10 +227,10 @@ class Train:
 
                 if self.p_model:
                     output, gloss = model(self.valid.enc[j], self.valid.dec[j])
-                    loss = self.criterion(output, self.valid.y_true[j]) + gloss
+                    loss = self.criterion(output, self.valid.y_true[j]) + gloss + self.mae_loss(output, self.valid.y_true[j])
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])
-                    loss = self.criterion(outputs, self.valid.y_true[j])
+                    loss = self.criterion(outputs, self.valid.y_true[j]) + self.mae_loss(outputs, self.valid.y_true[j])
 
                 test_loss += loss.item()
 
