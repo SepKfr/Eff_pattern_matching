@@ -323,7 +323,6 @@ class Transformer(nn.Module):
             enc_outputs, mu, sigma = self.process(enc_inputs)
             dist = torch.distributions.normal.Normal(mu, sigma)
             gloss = -torch.mean(dist.log_prob(enc_inputs))
-            enc_outputs = self.post_embedding(enc_outputs)
 
         else:
 
