@@ -207,7 +207,9 @@ class Train:
             for batch_id in range(n_batches_train):
 
                 if self.p_model:
-                    output, gloss = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    output, mu, sigma = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                    dist = torch.distributions.normal.Normal(mu, sigma)
+                    gloss = -torch.mean(dist.log_prob(self.train.y_true[batch_id]))
                     loss = self.criterion(output, self.train.y_true[batch_id]) + gloss
                 else:
                     output = model(self.train.enc[batch_id], self.train.dec[batch_id])
@@ -226,7 +228,9 @@ class Train:
             for j in range(n_batches_valid):
 
                 if self.p_model:
-                    output, gloss = model(self.valid.enc[j], self.valid.dec[j])
+                    output, mu, sigma = model(self.valid.enc[j], self.valid.dec[j])
+                    dist = torch.distributions.normal.Normal(mu, sigma)
+                    gloss = -torch.mean(dist.log_prob(self.valid.y_true[j]))
                     loss = self.criterion(output, self.valid.y_true[j]) + gloss
                 else:
                     outputs = model(self.valid.enc[j], self.valid.dec[j])

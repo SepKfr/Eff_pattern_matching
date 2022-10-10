@@ -53,4 +53,4 @@ class CovidFormatter(GenericDataFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 51200, 5120
+        return 512, 512
