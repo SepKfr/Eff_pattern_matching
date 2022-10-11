@@ -269,9 +269,8 @@ class process_model(nn.Module):
 
         musig = self.mut(x)
         mu, sigma = musig[:, :, :self.d], self.softPlus(musig[:, :, -self.d:]/2)
-        z = mu + sigma * torch.normal(torch.zeros_like(mu, device=self.device),
-                                      torch.ones_like(sigma, device=self.device))
-        x = self.proj_out(z)
+        dist = torch.distributions.normal.Normal(mu, sigma)
+        x = dist.sample()
         mu = torch.median(x, dim=0)[0]
         sigma = x.std(dim=0)
         return mu, sigma, x
