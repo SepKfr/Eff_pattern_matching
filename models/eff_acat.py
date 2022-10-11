@@ -321,7 +321,9 @@ class Transformer(nn.Module):
 
             enc_outputs = self.enc_embedding(enc_inputs)
             mu, sigma, pred = self.process(enc_outputs)
-            gloss = nn.GaussianNLLLoss()(mu, enc_outputs, sigma)
+            dist = torch.distributions.normal.Normal(mu, sigma)
+            gloss = dist.log_prob(enc_outputs)
+            gloss = -torch.mean(gloss)
             enc_outputs = pred + enc_outputs
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
