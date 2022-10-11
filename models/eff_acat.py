@@ -259,7 +259,7 @@ class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
 
-        self.mut = nn.Linear(d, 2, device=device)
+        self.mut = nn.Linear(d, 2*d, device=device)
         self.softPlus = nn.Softplus()
         self.d = d
         self.device = device
@@ -267,10 +267,11 @@ class process_model(nn.Module):
     def forward(self, x):
 
         musig = self.mut(x)
-        mu, sigma = musig[:, :, :1], musig[:, :, 1:]
-        sigma = self.softPlus(sigma)
+        mu, sigma = musig[:, :, :self.d], self.softPlus(musig[:, :, -self.d:])
+        z = mu + sigma * torch.normal(torch.zeros_like(mu, device=self.device),
+                                      torch.ones_like(sigma, device=self.device))
 
-        return mu, sigma
+        return mu, sigma, z
 
 
 class Transformer(nn.Module):
@@ -299,6 +300,7 @@ class Transformer(nn.Module):
             attn_type=attn_type, kernel=kernel, seed=seed)
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
+        self.post_embedding = nn.Linear(d_model, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
         self.process = process_model(d_model, device)
         self.attn_type = attn_type
@@ -315,10 +317,11 @@ class Transformer(nn.Module):
         if self.p_model:
 
             enc_outputs = self.enc_embedding(enc_inputs)
-            mu, sigma = self.process(enc_outputs)
-
+            mu, sigma, pred = self.process(enc_outputs)
+            dist = torch.distributions.normal.Normal(mu, sigma)
+            gloss = -torch.mean(dist.log_prob(enc_outputs))
+            enc_outputs = self.post_embedding(pred)
         else:
-
             enc_outputs = self.enc_embedding(enc_inputs)
 
         enc_outputs, enc_self_attns = self.encoder(enc_outputs)
@@ -326,5 +329,5 @@ class Transformer(nn.Module):
         outputs = enc_outputs[:, -self.pred_len:, :]
 
         if self.p_model:
-            return outputs, mu[:, -self.pred_len:, :], sigma[:, -self.pred_len:, :]
+            return outputs, gloss
         return outputs

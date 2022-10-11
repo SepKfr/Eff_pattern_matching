@@ -109,8 +109,12 @@ def download_from_url(url, output_path):
 def unzip(zip_path, output_file, data_folder):
     """Unzips files and checks successful completion."""
 
+    file_to_store = os.path.join(data_folder, output_file)
+    if not os.path.exists(file_to_store):
+        os.makedirs(file_to_store)
+
     print('Unzipping file: {}'.format(zip_path))
-    pyunpack.Archive(zip_path).extractall(data_folder)
+    pyunpack.Archive(zip_path).extractall(file_to_store)
 
     # Checks if unzip was successful
     '''if not os.path.exists(output_file):
@@ -448,14 +452,14 @@ def download_solar(args):
     csv_path = os.path.join(data_folder, 'al-pv-2006')
     zip_path = csv_path + '.zip'
 
-    download_and_unzip(url, zip_path, csv_path, data_folder)
+    #download_and_unzip(url, zip_path, csv_path, data_folder)
 
     df_list = []
 
     for file in os.listdir(csv_path):
 
         parts = file.split("_")
-        df = pd.read_csv(file, index_col=0, sep=',')
+        df = pd.read_csv(os.path.join(csv_path, file), index_col=0, sep=',')
         df_hr = df.iloc[0::12, :]
         df_sub = df_hr.copy()
         df_sub['latitude'] = parts[1]
@@ -476,8 +480,9 @@ def download_solar(args):
             date - earliest_time).days * 24
     output['days_from_start'] = (date - earliest_time).days
     output['categorical_id'] = output['id']
+    final = output.loc[output["Power(MW)"] > 0]
 
-    output.to_csv("solar.csv")
+    final[:50000].to_csv("solar.csv")
 
     print('Done.')
 
