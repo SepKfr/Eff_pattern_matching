@@ -259,7 +259,8 @@ class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
 
-        self.mut = nn.Linear(d, 2*d, device=device)
+        self.mut = nn.Linear(d, d*2)
+        self.re_mut = nn.Linear(d, d)
         self.softPlus = nn.Softplus()
         self.proj_out = nn.Linear(d, d, device=device)
         self.d = d
@@ -269,11 +270,9 @@ class process_model(nn.Module):
 
         musig = self.mut(x)
         mu, sigma = musig[:, :, :self.d], self.softPlus(musig[:, :, -self.d:]/2)
-        dist = torch.distributions.normal.Normal(mu, sigma)
-        x = dist.sample()
-        mu = torch.median(x, dim=0)[0]
-        sigma = x.std(dim=0)
-        return mu, sigma, x
+        z = mu + sigma * torch.randn_like(sigma)
+        re_x = self.re_mut(z)
+        return mu, sigma, re_x
 
 
 class Transformer(nn.Module):
@@ -320,9 +319,10 @@ class Transformer(nn.Module):
 
             enc_outputs = self.enc_embedding(enc_inputs)
             mu, sigma, pred = self.process(enc_outputs)
-            dist = torch.distributions.normal.Normal(mu, sigma)
-            gloss = dist.log_prob(enc_outputs)
-            gloss = -torch.mean(gloss)
+            gloss = nn.L1Loss()(pred, enc_outputs)
+            kl_loss = 0.5 * (torch.square(sigma) + torch.square(mu) - torch.log(torch.square(sigma)) - 1)
+            kl_loss = torch.mean(kl_loss)
+            loss = kl_loss + gloss
             enc_outputs = pred + enc_outputs
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
@@ -332,5 +332,5 @@ class Transformer(nn.Module):
         outputs = enc_outputs[:, -self.pred_len:, :]
 
         if self.p_model:
-            return outputs, gloss
+            return outputs, loss
         return outputs
