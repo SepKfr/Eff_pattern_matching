@@ -259,20 +259,21 @@ class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
 
-        self.mut = nn.Linear(d, d*2)
-        self.re_mut = nn.Linear(d, d)
+        self.encoder = PoswiseFeedForwardNet(d, d)
+        self.decoder = PoswiseFeedForwardNet(d, d)
+        self.musig = nn.Linear(d, 2*d)
         self.softPlus = nn.Softplus()
-        self.proj_out = nn.Linear(d, d, device=device)
         self.d = d
         self.device = device
 
     def forward(self, x):
 
-        musig = self.mut(x)
-        mu, sigma = musig[:, :, :self.d], self.softPlus(musig[:, :, -self.d:]/2)
-        z = mu + sigma * torch.randn_like(sigma)
-        re_x = self.re_mut(z)
-        return mu, sigma, re_x
+        x = self.encoder(x)
+        musig = self.musig(x)
+        mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
+        z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
+        y = self.decoder(z)
+        return y, mu, sigma
 
 
 class Transformer(nn.Module):
@@ -308,6 +309,8 @@ class Transformer(nn.Module):
         self.pred_len = pred_len
         self.device = device
         self.p_model = p_model
+        self.kld_weight = 0.005
+        self.beta = 4
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -318,12 +321,11 @@ class Transformer(nn.Module):
         if self.p_model:
 
             enc_outputs = self.enc_embedding(enc_inputs)
-            mu, sigma, pred = self.process(enc_outputs)
-            gloss = nn.L1Loss()(pred, enc_outputs)
-            kl_loss = 0.5 * (torch.square(sigma) + torch.square(mu) - torch.log(torch.square(sigma)) - 1)
-            kl_loss = torch.mean(kl_loss)
-            loss = kl_loss + gloss
-            enc_outputs = pred + enc_outputs
+            y, mu, sigma = self.process(enc_outputs)
+            recons_loss = nn.MSELoss()(y, enc_outputs)
+            kld_loss = torch.mean(-0.5 * torch.sum(1 + sigma - mu ** 2 - sigma.exp()))
+            loss = recons_loss + kld_loss * self.kld_weight * self.beta
+            enc_outputs = y + enc_outputs
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
 
