@@ -261,7 +261,7 @@ class process_model(nn.Module):
 
         self.encoder = PoswiseFeedForwardNet(d, d)
         self.decoder = PoswiseFeedForwardNet(d, d)
-        self.musig = nn.Linear(d, 2*d)
+        self.musig = nn.Linear(d, 2*d, device=device)
         self.softPlus = nn.Softplus()
         self.d = d
         self.device = device
