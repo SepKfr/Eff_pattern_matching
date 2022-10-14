@@ -89,6 +89,7 @@ class TrafficFormatter(GenericDataFormatter):
 
         categorical_scalers = {}
         num_classes = []
+
         for col in categorical_inputs:
             # Set all to str so that we don't have mixed integer/string columns
             srs = df[col].apply(str)
