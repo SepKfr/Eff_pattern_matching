@@ -259,10 +259,9 @@ class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
 
-        self.encoder = PoswiseFeedForwardNet(d, d)
-        self.decoder = PoswiseFeedForwardNet(d, d)
+        self.encoder = PoswiseFeedForwardNet(d, d*4)
+        self.decoder = PoswiseFeedForwardNet(d, d*4)
         self.musig = nn.Linear(d, 2*d, device=device)
-        self.softPlus = nn.Softplus()
         self.d = d
         self.device = device
 
@@ -310,7 +309,6 @@ class Transformer(nn.Module):
         self.device = device
         self.p_model = p_model
         self.kld_weight = 0.005
-        self.beta = 4
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -324,8 +322,8 @@ class Transformer(nn.Module):
             y, mu, sigma = self.process(enc_outputs)
             recons_loss = nn.MSELoss()(y, enc_outputs)
             kld_loss = torch.mean(-0.5 * torch.sum(1 + sigma - mu ** 2 - sigma.exp()))
-            loss = recons_loss + kld_loss * self.kld_weight * self.beta
-            enc_outputs = y
+            loss = recons_loss + kld_loss * self.kld_weight
+            enc_outputs = y + enc_outputs
 
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
