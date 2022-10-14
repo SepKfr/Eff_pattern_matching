@@ -327,7 +327,7 @@ class Transformer(nn.Module):
             y, mu, log_var = self.process(enc_inputs)
             recons_loss = nn.MSELoss()(y, enc_inputs)
             kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
-            loss = (recons_loss + kld_loss * self.kld_weight) * 0.01
+            loss = (recons_loss + kld_loss * self.kld_weight) * 0.01 * 1 / (y.abs().mean())
             enc_inputs = y + enc_inputs
             enc_outputs = self.enc_embedding(enc_inputs)
 
