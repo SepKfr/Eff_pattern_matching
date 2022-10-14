@@ -272,6 +272,8 @@ class process_model(nn.Module):
         mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
         z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
         y = self.decoder(z)
+        mu = torch.flatten(mu, start_dim=1)
+        sigma = torch.flatten(sigma, start_dim=1)
         return y, mu, sigma
 
 
@@ -319,9 +321,9 @@ class Transformer(nn.Module):
         if self.p_model:
 
             enc_outputs = self.enc_embedding(enc_inputs)
-            y, mu, sigma = self.process(enc_outputs)
+            y, mu, log_var = self.process(enc_outputs)
             recons_loss = nn.MSELoss()(y, enc_outputs)
-            kld_loss = torch.mean(-0.5 * torch.sum(1 + sigma - mu ** 2 - sigma.exp()))
+            kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
             loss = recons_loss + kld_loss * self.kld_weight
             enc_outputs = y + enc_outputs
 
