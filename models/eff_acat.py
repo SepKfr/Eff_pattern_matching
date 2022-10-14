@@ -256,21 +256,25 @@ class Decoder(nn.Module):
 
 
 class process_model(nn.Module):
-    def __init__(self, d, device):
+    def __init__(self, d, src_input_size, device):
         super(process_model, self).__init__()
 
-        self.encoder = PoswiseFeedForwardNet(d, d*4)
-        self.decoder = PoswiseFeedForwardNet(d, d*4)
+        self.pre_process = nn.Linear(src_input_size, d)
+        self.encoder = PoswiseFeedForwardNet(d, src_input_size)
+        self.decoder = PoswiseFeedForwardNet(src_input_size, d)
         self.musig = nn.Linear(d, 2*d, device=device)
+        self.pos_process = nn.Linear(d, src_input_size)
         self.d = d
         self.device = device
 
     def forward(self, x):
 
+        x = self.pre_process(x)
         x = self.encoder(x)
         musig = self.musig(x)
         mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
         z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
+        z = self.pos_process(z)
         y = self.decoder(z)
         mu = torch.flatten(mu, start_dim=1)
         sigma = torch.flatten(sigma, start_dim=1)
@@ -305,7 +309,7 @@ class Transformer(nn.Module):
         self.enc_embedding = nn.Linear(src_input_size, d_model)
         self.post_embedding = nn.Linear(d_model, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
-        self.process = process_model(d_model, device)
+        self.process = process_model(d_model, src_input_size, device)
         self.attn_type = attn_type
         self.pred_len = pred_len
         self.device = device
@@ -320,12 +324,12 @@ class Transformer(nn.Module):
 
         if self.p_model:
 
+            y, mu, log_var = self.process(enc_inputs)
+            recons_loss = nn.MSELoss()(y, enc_inputs)
+            kld_loss = torch.mean(-0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
+            loss = (recons_loss + kld_loss * self.kld_weight) * 0.01
+            enc_inputs = y + enc_inputs
             enc_outputs = self.enc_embedding(enc_inputs)
-            y, mu, log_var = self.process(enc_outputs)
-            recons_loss = nn.MSELoss()(y, enc_outputs)
-            kld_loss = torch.mean(-0.5 * torch.mean(1 + log_var - mu ** 2 - log_var.exp(), dim=1), dim=0)
-            loss = (recons_loss + kld_loss * self.kld_weight) * 1.0 / (y.abs().mean())
-            enc_outputs = y + enc_outputs
 
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
