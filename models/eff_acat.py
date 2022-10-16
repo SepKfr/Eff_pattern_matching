@@ -301,7 +301,6 @@ class Transformer(nn.Module):
             attn_type=attn_type, kernel=kernel, seed=seed)
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
-        self.post_embedding = nn.Linear(d_model, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
         self.process = process_model(d_model, device)
         self.attn_type = attn_type
@@ -321,9 +320,6 @@ class Transformer(nn.Module):
 
             enc_outputs = self.enc_embedding(enc_inputs)
             y, mu, sigma = self.process(enc_outputs)
-            recons_loss = nn.MSELoss()(y, enc_outputs)
-            kld_loss = torch.mean(-0.5 * (1 + sigma - mu ** 2 - sigma.exp()))
-            loss = (recons_loss + kld_loss * self.kld_weight) * 0.01
             enc_outputs = y + enc_outputs
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
@@ -332,6 +328,4 @@ class Transformer(nn.Module):
         enc_outputs = self.projection(enc_outputs)
         outputs = enc_outputs[:, -self.pred_len:, :]
 
-        if self.p_model:
-            return outputs, loss
         return outputs
