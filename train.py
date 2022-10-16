@@ -268,7 +268,7 @@ class Train:
         for j in range(n_batches_test):
 
             if self.p_model:
-                output, _ = self.best_model(self.test.enc[j], self.test.dec[j])
+                output = self.best_model(self.test.enc[j], self.test.dec[j])
             else:
                 output = self.best_model(self.test.enc[j], self.test.dec[j])
 
