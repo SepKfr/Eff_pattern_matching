@@ -259,19 +259,25 @@ class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
 
-        self.encoder = PoswiseFeedForwardNet(d, d)
-        self.decoder = PoswiseFeedForwardNet(d, d)
+        self.encoder = \
+            nn.ModuleList([nn.Conv1d(in_channels=d, out_channels=d, kernel_size=k, padding=int((k-1)/2),
+                                     device=device) for k in [3, 9]]).to(device)
+        self.decoder = \
+            nn.ModuleList([nn.Conv1d(in_channels=d, out_channels=d, kernel_size=k, padding=int((k-1)/2),
+                                     device=device) for k in [3, 9]]).to(device)
         self.musig = nn.Linear(d, 2*d, device=device)
         self.d = d
         self.device = device
 
     def forward(self, x):
 
-        x = self.encoder(x)
+        for i in range(2):
+            x = self.encoder[i](x.permute(0, 2, 1)).permute(0, 2, 1)
         musig = self.musig(x)
         mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
         z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
-        y = nn.Tanh()(self.decoder(z))
+        for i in range(2):
+            y = self.decoder[i](z.permute(0, 2, 1)).permute(0, 2, 1)
         return y, mu, sigma
 
 
