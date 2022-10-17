@@ -263,6 +263,7 @@ class process_model(nn.Module):
         self.decoder = nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9-1)/2), device=device)
         self.musig = nn.Linear(d, 2*d, device=device)
         self.d = d
+        self.tanh = nn.Tanh()
         self.device = device
 
     def forward(self, x):
@@ -271,7 +272,7 @@ class process_model(nn.Module):
         musig = self.musig(x)
         mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
         z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
-        y = self.decoder(z.permute(0, 2, 1)).permute(0, 2, 1)
+        y = self.tanh(self.decoder(z.permute(0, 2, 1)).permute(0, 2, 1))
         return y
 
 
