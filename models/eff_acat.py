@@ -259,11 +259,15 @@ class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
 
-        self.encoder = nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9-1)/2), device=device)
-        self.decoder = nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9-1)/2), device=device)
+        self.encoder = nn.Sequential(nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9-1)/2)),
+                                     nn.BatchNorm1d(d),
+                                     nn.LeakyReLU()).to(device)
+
+        self.decoder = nn.Sequential(nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9 - 1) / 2)),
+                                     nn.BatchNorm1d(d),
+                                     nn.LeakyReLU()).to(device)
         self.musig = nn.Linear(d, 2*d, device=device)
         self.d = d
-        self.tanh = nn.Tanh()
         self.device = device
 
     def forward(self, x):
@@ -272,7 +276,8 @@ class process_model(nn.Module):
         musig = self.musig(x)
         mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
         z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
-        y = self.tanh(self.decoder(z.permute(0, 2, 1)).permute(0, 2, 1))
+        y = torch.tanh(self.decoder(z.permute(0, 2, 1)).permute(0, 2, 1))
+        print(y)
         return y
 
 
