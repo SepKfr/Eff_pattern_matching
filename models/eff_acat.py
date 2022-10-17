@@ -260,12 +260,10 @@ class process_model(nn.Module):
         super(process_model, self).__init__()
 
         self.encoder = nn.Sequential(nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9-1)/2)),
-                                     nn.BatchNorm1d(d),
-                                     nn.LeakyReLU()).to(device)
+                                     nn.BatchNorm1d(d)).to(device)
 
         self.decoder = nn.Sequential(nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9 - 1) / 2)),
-                                     nn.BatchNorm1d(d),
-                                     nn.LeakyReLU()).to(device)
+                                     nn.BatchNorm1d(d)).to(device)
         self.musig = nn.Linear(d, 2*d, device=device)
         self.d = d
         self.device = device
@@ -276,7 +274,7 @@ class process_model(nn.Module):
         musig = self.musig(x)
         mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
         z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
-        y = torch.tanh(self.decoder(z.permute(0, 2, 1)).permute(0, 2, 1))
+        y = torch.softmax(self.decoder(z.permute(0, 2, 1)).permute(0, 2, 1), dim=-1)
         return y
 
 
