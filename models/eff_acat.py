@@ -278,7 +278,7 @@ class process_model(nn.Module):
         z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
         for i in range(2):
             y = self.decoder[i](z.permute(0, 2, 1)).permute(0, 2, 1)
-        return y, mu, sigma
+        return y
 
 
 class Transformer(nn.Module):
@@ -313,8 +313,6 @@ class Transformer(nn.Module):
         self.pred_len = pred_len
         self.device = device
         self.p_model = p_model
-        self.kld_weight = 0.005
-        self.beta = 4
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -325,7 +323,7 @@ class Transformer(nn.Module):
         if self.p_model:
 
             enc_outputs = self.enc_embedding(enc_inputs)
-            y, mu, sigma = self.process(enc_outputs)
+            y = self.process(enc_outputs)
             enc_outputs = y + enc_outputs
         else:
             enc_outputs = self.enc_embedding(enc_inputs)

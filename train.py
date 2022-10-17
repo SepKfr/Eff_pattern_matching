@@ -206,12 +206,8 @@ class Train:
             total_loss = 0
             for batch_id in range(n_batches_train):
 
-                if self.p_model:
-                    output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                    loss = self.criterion(output, self.train.y_true[batch_id])
-                else:
-                    output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                    loss = self.criterion(output, self.train.y_true[batch_id])
+                output = model(self.train.enc[batch_id], self.train.dec[batch_id])
+                loss = self.criterion(output, self.train.y_true[batch_id])
 
                 total_loss += loss.item()
 
@@ -225,13 +221,8 @@ class Train:
             test_loss = 0
             for j in range(n_batches_valid):
 
-                if self.p_model:
-                    output = model(self.valid.enc[j], self.valid.dec[j])
-
-                    loss = self.criterion(output, self.valid.y_true[j])
-                else:
-                    outputs = model(self.valid.enc[j], self.valid.dec[j])
-                    loss = self.criterion(outputs, self.valid.y_true[j])
+                outputs = model(self.valid.enc[j], self.valid.dec[j])
+                loss = self.criterion(outputs, self.valid.y_true[j])
 
                 test_loss += loss.item()
 
@@ -267,10 +258,7 @@ class Train:
 
         for j in range(n_batches_test):
 
-            if self.p_model:
-                output = self.best_model(self.test.enc[j], self.test.dec[j])
-            else:
-                output = self.best_model(self.test.enc[j], self.test.dec[j])
+            output = self.best_model(self.test.enc[j], self.test.dec[j])
 
             predictions[j] = output.squeeze(-1).cpu().detach().numpy()
             '''output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
