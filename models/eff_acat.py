@@ -259,25 +259,19 @@ class process_model(nn.Module):
     def __init__(self, d, device):
         super(process_model, self).__init__()
 
-        self.encoder = \
-            nn.ModuleList([nn.Conv1d(in_channels=d, out_channels=d, kernel_size=k, padding=int((k-1)/2),
-                                     device=device) for k in [3, 9]]).to(device)
-        self.decoder = \
-            nn.ModuleList([nn.Conv1d(in_channels=d, out_channels=d, kernel_size=k, padding=int((k-1)/2),
-                                     device=device) for k in [3, 9]]).to(device)
+        self.encoder = nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9-1)/2), device=device)
+        self.decoder = nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9-1)/2), device=device)
         self.musig = nn.Linear(d, 2*d, device=device)
         self.d = d
         self.device = device
 
     def forward(self, x):
 
-        for i in range(2):
-            x = self.encoder[i](x.permute(0, 2, 1)).permute(0, 2, 1)
+        x = self.encoder(x.permute(0, 2, 1)).permute(0, 2, 1)
         musig = self.musig(x)
         mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
         z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
-        for i in range(2):
-            y = self.decoder[i](z.permute(0, 2, 1)).permute(0, 2, 1)
+        y = self.decoder(z.permute(0, 2, 1)).permute(0, 2, 1)
         return y
 
 
