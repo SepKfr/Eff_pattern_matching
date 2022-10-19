@@ -215,7 +215,7 @@ class ElectricityFormatter(GenericDataFormatter):
 
         model_params = {
             'hidden_layer_size': [8],
-            'minibatch_size': [256],
+            'minibatch_size': [512],
             'num_heads': 8,
             'stack_size': [1],
             'context_lengths': [1, 3, 6, 9]
@@ -228,7 +228,7 @@ class ElectricityFormatter(GenericDataFormatter):
 
         fixed_params = {
             'total_time_steps': 8 * 24 + self.pred_len,
-            'num_encoder_steps': 4 * 24,
+            'num_encoder_steps': 8 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,
@@ -244,4 +244,4 @@ class ElectricityFormatter(GenericDataFormatter):
         Retdurns:
           Tuple of (training samples, validation samples)
         """
-        return 32000, 3840
+        return 51200, 5120

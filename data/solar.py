@@ -66,7 +66,7 @@ class SolarFormatter(ElectricityFormatter):
 
         fixed_params = {
             'total_time_steps': 8 * 24 + self.pred_len,
-            'num_encoder_steps': 4 * 24,
+            'num_encoder_steps': 8 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
         }
@@ -80,4 +80,4 @@ class SolarFormatter(ElectricityFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 32000, 3840
+        return 51200, 5120
