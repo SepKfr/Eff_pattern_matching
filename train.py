@@ -207,8 +207,7 @@ class Train:
             for batch_id in range(n_batches_train):
 
                 output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
-
+                loss = self.criterion(output, self.train.y_true[batch_id])
                 total_loss += loss.item()
 
                 optimizer.zero_grad()
@@ -223,8 +222,7 @@ class Train:
 
                 outputs = model(self.valid.enc[j], self.valid.dec[j])
 
-                loss = self.criterion(outputs, self.valid.y_true[j]) + self.mae_loss(outputs, self.valid.y_true[j])
-
+                loss = self.criterion(outputs, self.valid.y_true[j])
                 test_loss += loss.item()
 
             print("val loss: {:.4f}".format(test_loss))
@@ -279,12 +277,12 @@ class Train:
 
         predictions = torch.from_numpy(predictions)
         test_y = self.test.y_true.cpu()
-        test_loss = self.criterion(predictions, test_y).item()
         normaliser = test_y.abs().mean()
+
+        test_loss = self.criterion(predictions, test_y).item()
         test_loss = test_loss / normaliser
 
         mae_loss = self.mae_loss(predictions, test_y).item()
-        normaliser = test_y.abs().mean()
         mae_loss = mae_loss / normaliser
 
         print("test loss {:.4f}".format(test_loss))
