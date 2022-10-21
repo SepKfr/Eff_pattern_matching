@@ -80,4 +80,4 @@ class SolarFormatter(ElectricityFormatter):
         Returns:
           Tuple of (training samples, validation samples)
         """
-        return 51200, 5120
+        return 32000, 3840
