@@ -308,6 +308,7 @@ class Transformer(nn.Module):
             attn_type=attn_type, kernel=kernel, seed=seed)
 
         self.enc_embedding = nn.Linear(src_input_size, d_model)
+        self.dec_embedding = nn.Linear(tgt_input_size, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
         self.process = process_model(d_model, device)
         self.attn_type = attn_type
@@ -326,11 +327,16 @@ class Transformer(nn.Module):
             enc_outputs = self.enc_embedding(enc_inputs)
             y = self.process(enc_outputs)
             enc_outputs = y + enc_outputs
+            dec_outputs = self.dec_embedding(dec_inputs)
+            y = self.process(dec_outputs)
+            dec_outputs = y + dec_outputs
         else:
             enc_outputs = self.enc_embedding(enc_inputs)
+            dec_outputs = self.dec_embedding(dec_inputs)
 
         enc_outputs, enc_self_attns = self.encoder(enc_outputs)
-        enc_outputs = self.projection(enc_outputs)
-        outputs = enc_outputs[:, -self.pred_len:, :]
+        dec_outputs, dec_self_attns, dec_enc_attn = self.decoder(dec_outputs, enc_outputs)
+        dec_outputs = self.projection(dec_outputs)
+        outputs = dec_outputs[:, -self.pred_len:, :]
 
         return outputs
