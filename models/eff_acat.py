@@ -335,7 +335,7 @@ class Transformer(nn.Module):
             dec_outputs = self.dec_embedding(dec_inputs)
 
         enc_outputs, enc_self_attns = self.encoder(enc_outputs)
-        dec_outputs, dec_self_attns, dec_enc_attn = self.decoder(dec_outputs, enc_outputs)
+        dec_outputs, dec_self_attns, dec_enc_attn = self.decoder(enc_outputs, dec_outputs)
         dec_outputs = self.projection(dec_outputs)
         outputs = dec_outputs[:, -self.pred_len:, :]
 

@@ -39,7 +39,7 @@ class ExperimentConfig(object):
                            'favorita', 'watershed', 'solar', 'ETTm2', 'weather',
                            'covid']
 
-    def __init__(self, pred_len, experiment='covid', root_folder=None):
+    def __init__(self, experiment='covid', root_folder=None):
 
         if experiment not in self.default_experiments:
             raise ValueError('Unrecognised experiment={}'.format(experiment))
@@ -52,7 +52,7 @@ class ExperimentConfig(object):
         self.root_folder = root_folder
         self.experiment = experiment
         self.data_folder = os.path.join(root_folder, '', experiment)
-        self.pred_len = pred_len
+        #self.pred_len = pred_len
 
         for relevant_directory in [
             self.root_folder, self.data_folder
@@ -452,7 +452,7 @@ def download_solar(args):
     csv_path = os.path.join(data_folder, 'al-pv-2006')
     zip_path = csv_path + '.zip'
 
-    #download_and_unzip(url, zip_path, csv_path, data_folder)
+    download_and_unzip(url, zip_path, csv_path, data_folder)
 
     df_list = []
 
@@ -482,7 +482,7 @@ def download_solar(args):
     output['categorical_id'] = output['id']
     final = output.loc[output["Power(MW)"] > 0]
 
-    final[:50000].to_csv("solar.csv")
+    final.to_csv("solar.csv")
 
     print('Done.')
 
