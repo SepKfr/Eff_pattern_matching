@@ -109,8 +109,12 @@ def download_from_url(url, output_path):
 def unzip(zip_path, output_file, data_folder):
     """Unzips files and checks successful completion."""
 
+    file_to_store = os.path.join(data_folder, output_file)
+    if not os.path.exists(file_to_store):
+        os.makedirs(file_to_store)
+
     print('Unzipping file: {}'.format(zip_path))
-    pyunpack.Archive(zip_path).extractall(data_folder)
+    pyunpack.Archive(zip_path).extractall(file_to_store)
 
     # Checks if unzip was successful
     '''if not os.path.exists(output_file):
