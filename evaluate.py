@@ -86,7 +86,7 @@ for i, seed in enumerate([4293, 1692, 3029]):
                                 seed=seed,
                                 pred_len=pred_len)
                 else:
-
+                    p_model = True if args.p_model == "True" else False
                     model = Transformer(src_input_size=src_input_size,
                                         tgt_input_size=tgt_input_size,
                                         pred_len=pred_len,
@@ -97,7 +97,7 @@ for i, seed in enumerate([4293, 1692, 3029]):
                                         tgt_pad_index=0, device=device,
                                         attn_type=args.attn_type,
                                         seed=seed, kernel=k,
-                                        p_model=args.p_model)
+                                        p_model=p_model)
 
                 checkpoint = torch.load(os.path.join("models_{}_{}".format(args.exp_name, args.pred_len),
                                         "{}_{}".format(args.name, seed)))
