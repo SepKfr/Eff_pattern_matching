@@ -41,7 +41,9 @@ class WatershedFormatter(DataFormatter):
         ('id', DataTypes.REAL_VALUED, InputTypes.ID),
         ('hours_from_start', DataTypes.REAL_VALUED, InputTypes.TIME),
         ('Conductivity', DataTypes.REAL_VALUED, InputTypes.TARGET),
-        ('Q', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('TempC', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('Nitrate_mg', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
+        ('pH', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('hour', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('categorical_id', DataTypes.CATEGORICAL, InputTypes.STATIC_INPUT),
@@ -103,8 +105,8 @@ class WatershedFormatter(DataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 7 * 24 + self.pred_len,
-            'num_encoder_steps': 7 * 24,
+            'total_time_steps': 8 * 24 + self.pred_len,
+            'num_encoder_steps': 4 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,

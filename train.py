@@ -52,7 +52,6 @@ class NoamOpt:
 
 
 def create_config(hyper_parameters):
-
     prod = list(itertools.product(*hyper_parameters))
     return list(random.sample(set(prod), len(prod)))
 
@@ -77,7 +76,6 @@ class Train:
         self.attn_type = args.attn_type
         self.criterion = nn.MSELoss()
         self.mae_loss = nn.L1Loss()
-        self.p_model = True if args.p_model == "True" else False
         self.num_epochs = self.params['num_epochs']
         self.name = args.name
         self.pr = args.pr
@@ -105,7 +103,7 @@ class Train:
                             n_layers=stack_size, src_pad_index=0,
                             tgt_pad_index=0, device=self.device,
                             attn_type=self.attn_type,
-                            seed=self.seed, kernel=kernel, p_model=self.p_model)
+                            seed=self.seed, kernel=kernel)
         model.to(self.device)
 
         return model
@@ -128,7 +126,7 @@ class Train:
 
         trn = ModelData(trn_batching[0], trn_batching[1], trn_batching[2], trn_batching[3], self.device)
         valid = ModelData(valid_batching[0], valid_batching[1], valid_batching[2], valid_batching[3], self.device)
-        test = ModelData(test_batching[0], test_batching[1], test_batching[2].squeeze(-1), test_batching[3], self.device)
+        test = ModelData(test_batching[0], test_batching[1], test_batching[2], test_batching[3], self.device)
 
         return trn, valid, test
 
@@ -169,16 +167,16 @@ class Train:
 
         d_model = trial.suggest_categorical("d_model", [16, 32])
         w_steps = trial.suggest_categorical("w_steps", [1000])
-        stack_size = trial.suggest_categorical("stack_size", [1])
+        stack_size = trial.suggest_categorical("stack_size", [1, 3] if self.attn_type == "basic_attn" else [1])
 
         n_heads = self.model_params['num_heads']
 
         kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
         kernel = trial.suggest_categorical("kernel", kernel)
 
-        if [d_model, kernel, stack_size, w_steps] in self.param_history:
+        if [d_model, kernel, stack_size] in self.param_history:
             raise optuna.exceptions.TrialPruned()
-        self.param_history.append([d_model, kernel, stack_size, w_steps])
+        self.param_history.append([d_model, kernel, stack_size])
 
         d_k = int(d_model / n_heads)
 
@@ -191,10 +189,10 @@ class Train:
                             n_layers=stack_size, src_pad_index=0,
                             tgt_pad_index=0, device=self.device,
                             attn_type=self.attn_type,
-                            seed=self.seed, kernel=kernel, p_model=self.p_model)
+                            seed=self.seed, kernel=kernel)
         model.to(self.device)
 
-        optimizer = Adam(model.parameters())
+        optimizer = NoamOpt(Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9), 2, d_model, w_steps)
 
         epoch_start = 0
         epoch_end = 0
@@ -208,11 +206,12 @@ class Train:
 
                 output = model(self.train.enc[batch_id], self.train.dec[batch_id])
                 loss = self.criterion(output, self.train.y_true[batch_id])
+
                 total_loss += loss.item()
 
                 optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                optimizer.step_and_update_lr()
 
             print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
@@ -221,7 +220,6 @@ class Train:
             for j in range(n_batches_valid):
 
                 outputs = model(self.valid.enc[j], self.valid.dec[j])
-
                 loss = self.criterion(outputs, self.valid.y_true[j])
                 test_loss += loss.item()
 
@@ -232,7 +230,7 @@ class Train:
                 if val_inner_loss < val_loss:
                     val_loss = val_inner_loss
                     self.best_model = model
-                    torch.save({'model_state_dict': self.best_model.state_dict()},
+                    torch.save({'model_state_dict': model.state_dict()},
                                os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
                 epoch_end = epoch
 
@@ -253,13 +251,14 @@ class Train:
 
         self.best_model.eval()
         predictions = np.zeros((self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2]))
+        targets_all = np.zeros((self.test.y_true.shape[0], self.test.y_true.shape[1], self.test.y_true.shape[2]))
         n_batches_test = self.test.enc.shape[0]
 
         for j in range(n_batches_test):
 
             output = self.best_model(self.test.enc[j], self.test.dec[j])
-
             predictions[j] = output.squeeze(-1).cpu().detach().numpy()
+            targets_all[j] = self.test.y_true[j].cpu().squeeze(-1).detach().numpy()
             '''output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
             p = self.formatter.format_predictions(output_map["predictions"])
             if p is not None:
@@ -276,13 +275,13 @@ class Train:
                 targets_all[j, :targets.shape[0], :] = targets'''
 
         predictions = torch.from_numpy(predictions)
-        test_y = self.test.y_true.cpu()
-        normaliser = test_y.abs().mean()
-
-        test_loss = self.criterion(predictions, test_y).item()
+        targets_all = torch.from_numpy(targets_all)
+        test_loss = self.criterion(predictions, targets_all).item()
+        normaliser = targets_all.abs().mean()
         test_loss = test_loss / normaliser
 
-        mae_loss = self.mae_loss(predictions, test_y).item()
+        mae_loss = self.mae_loss(predictions, targets_all).item()
+        normaliser = targets_all.abs().mean()
         mae_loss = mae_loss / normaliser
 
         print("test loss {:.4f}".format(test_loss))
@@ -291,7 +290,7 @@ class Train:
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(test_loss)))
         self.erros["{}_{}".format(self.name, self.seed)].append(float("{:.5f}".format(mae_loss)))
 
-        error_path = "errors_{}_{}.json".format(self.exp_name, self.pred_len)
+        error_path = "new_Errors_{}_{}.json".format(self.exp_name, self.pred_len)
 
         if os.path.exists(error_path):
             with open(error_path) as json_file:
@@ -311,24 +310,23 @@ class Train:
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='KittyCat')
+    parser.add_argument("--attn_type", type=str, default='basic_attn')
     parser.add_argument("--name", type=str, default="KittyCat")
-    parser.add_argument("--exp_name", type=str, default='traffic')
+    parser.add_argument("--exp_name", type=str, default='covid')
     parser.add_argument("--cuda", type=str, default="cuda:0")
     parser.add_argument("--seed", type=int, default=21)
     parser.add_argument("--pr", type=float, default=0.8)
     parser.add_argument("--n_trials", type=int, default=100)
-    parser.add_argument("--DataParallel", type=bool, default=True)
-    parser.add_argument("--p_model", type=str, default="False")
-
+    parser.add_argument("--DataParallel", type=bool, default=False)
     args = parser.parse_args()
 
     np.random.seed(args.seed)
+
     random.seed(args.seed)
     torch.manual_seed(args.seed)
 
     data_csv_path = "{}.csv".format(args.exp_name)
-    raw_data = pd.read_csv(data_csv_path, dtype={'date': str})
+    raw_data = pd.read_csv(data_csv_path)
 
     for pred_len in [24, 48, 72, 96]:
         Train(raw_data, args, pred_len)

@@ -15,7 +15,6 @@ class CovidFormatter(GenericDataFormatter):
         ('PEOPLE_POSITIVE_NEW_CASES_COUNT', DataTypes.REAL_VALUED, InputTypes.TARGET),
         ('day_of_week', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
         ('days_from_start', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
-        ('Number of Trips', DataTypes.REAL_VALUED, InputTypes.KNOWN_INPUT),
     ]
 
     # Default params
@@ -23,8 +22,8 @@ class CovidFormatter(GenericDataFormatter):
         """Returns fixed model parameters for experiments."""
 
         fixed_params = {
-            'total_time_steps': 7 * 24 + self.pred_len,
-            'num_encoder_steps': 7 * 24,
+            'total_time_steps': 8 * 24 + self.pred_len,
+            'num_encoder_steps': 4 * 24,
             'num_decoder_steps': self.pred_len,
             'num_epochs': 50,
             'early_stopping_patience': 5,

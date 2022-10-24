@@ -1,5 +1,3 @@
-import math
-
 import torch
 import torch.nn as nn
 import numpy as np
@@ -255,38 +253,11 @@ class Decoder(nn.Module):
         return dec_outputs, dec_self_attns, dec_enc_attns
 
 
-class process_model(nn.Module):
-    def __init__(self, d, device):
-        super(process_model, self).__init__()
-
-        self.encoder = nn.Sequential(nn.Conv1d(in_channels=d, out_channels=d, kernel_size=3, padding=int((3-1)/2)),
-                                     nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9-1)/2)),
-                                     nn.BatchNorm1d(d),
-                                     nn.ELU()).to(device)
-
-        self.decoder = nn.Sequential(nn.Conv1d(in_channels=d, out_channels=d, kernel_size=3, padding=int((3-1)/2)),
-                                     nn.Conv1d(in_channels=d, out_channels=d, kernel_size=9, padding=int((9-1)/2)),
-                                     nn.BatchNorm1d(d),
-                                     nn.ELU()).to(device)
-        self.musig = nn.Linear(d, 2*d, device=device)
-        self.d = d
-        self.device = device
-
-    def forward(self, x):
-
-        x = self.encoder(x.permute(0, 2, 1)).permute(0, 2, 1)
-        musig = self.musig(x)
-        mu, sigma = musig[:, :, :self.d], musig[:, :, -self.d:]
-        z = mu + torch.exp(sigma*0.5) * torch.randn_like(sigma, device=self.device)
-        y = self.decoder(z.permute(0, 2, 1)).permute(0, 2, 1)
-        return y
-
-
 class Transformer(nn.Module):
 
     def __init__(self, src_input_size, tgt_input_size, pred_len, d_model,
                  d_ff, d_k, d_v, n_heads, n_layers, src_pad_index,
-                 tgt_pad_index, device, attn_type, kernel, seed, p_model):
+                 tgt_pad_index, device, attn_type, kernel, seed):
         super(Transformer, self).__init__()
 
         torch.manual_seed(seed)
@@ -310,11 +281,9 @@ class Transformer(nn.Module):
         self.enc_embedding = nn.Linear(src_input_size, d_model)
         self.dec_embedding = nn.Linear(tgt_input_size, d_model)
         self.projection = nn.Linear(d_model, 1, bias=False)
-        self.process = process_model(d_model, device)
         self.attn_type = attn_type
         self.pred_len = pred_len
         self.device = device
-        self.p_model = p_model
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -322,20 +291,10 @@ class Transformer(nn.Module):
 
     def forward(self, enc_inputs, dec_inputs):
 
-        if self.p_model:
-
-            enc_outputs = self.enc_embedding(enc_inputs)
-            y = self.process(enc_outputs)
-            enc_outputs = y + enc_outputs
-            #dec_outputs = self.dec_embedding(dec_inputs)
-            #y = self.process(dec_outputs)
-            #dec_outputs = y + dec_outputs
-        else:
-            enc_outputs = self.enc_embedding(enc_inputs)
-            #dec_outputs = self.dec_embedding(dec_inputs)
-
-        enc_outputs, enc_self_attns = self.encoder(enc_outputs)
-        #dec_outputs, dec_self_attns, dec_enc_attn = self.decoder(enc_outputs, dec_outputs)
-        outputs = self.projection(enc_outputs[:, -self.pred_len:, :])
-
+        enc_inputs = self.enc_embedding(enc_inputs)
+        dec_inputs = self.dec_embedding(dec_inputs)
+        enc_outputs, enc_self_attns = self.encoder(enc_inputs)
+        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
+        dec_logits = self.projection(dec_outputs)
+        outputs = dec_logits[:, -self.pred_len:, :]
         return outputs
