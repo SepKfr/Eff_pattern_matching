@@ -19,7 +19,7 @@ parser.add_argument("--name", type=str, default='basic_attn')
 parser.add_argument("--exp_name", type=str, default='covid')
 parser.add_argument("--cuda", type=str, default="cuda:0")
 parser.add_argument("--pred_len", type=int, default=24)
-parser.add_argument("--p_model", type=str, default="False")
+
 
 args = parser.parse_args()
 
@@ -96,8 +96,7 @@ for i, seed in enumerate([4293, 1692, 3029]):
                                         n_layers=stack_size, src_pad_index=0,
                                         tgt_pad_index=0, device=device,
                                         attn_type=args.attn_type,
-                                        seed=seed, kernel=k,
-                                        p_model=p_model)
+                                        seed=seed, kernel=k)
 
                 checkpoint = torch.load(os.path.join("models_{}_{}".format(args.exp_name, args.pred_len),
                                         "{}_{}".format(args.name, seed)))
