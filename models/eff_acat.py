@@ -292,8 +292,8 @@ class Transformer(nn.Module):
     def forward(self, enc_inputs, dec_inputs):
 
         enc_inputs = self.enc_embedding(enc_inputs)
-        #dec_inputs = self.dec_embedding(dec_inputs)
+        dec_inputs = self.dec_embedding(dec_inputs)
         enc_outputs, enc_self_attns = self.encoder(enc_inputs)
-        #dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
-        dec_logits = self.projection(enc_outputs[:, -self.pred_len:, :])
+        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_outputs)
+        dec_logits = self.projection(dec_outputs[:, -self.pred_len:, :])
         return dec_logits
