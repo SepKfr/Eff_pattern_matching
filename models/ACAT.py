@@ -6,7 +6,7 @@ import torch.nn as nn
 
 class ACAT(nn.Module):
 
-    def __init__(self, d_k, device, h, l_k, seed):
+    def __init__(self, d_k, device, h, seed):
 
         super(ACAT, self).__init__()
 

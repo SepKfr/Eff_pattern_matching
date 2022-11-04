@@ -10,7 +10,7 @@ import os
 
 from Utils.base_train import batching, ModelData, batch_sampled_data
 from data.data_loader import ExperimentConfig
-from models.eff_acat import Transformer
+from models.Transformers import Transformer
 from models.rnn import RNN
 
 parser = argparse.ArgumentParser(description="preprocess argument parser")

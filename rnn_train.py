@@ -1,4 +1,4 @@
-from models.eff_acat import Transformer
+from models.Transformers import Transformer
 from torch.optim import Adam
 import torch.nn as nn
 import numpy as np

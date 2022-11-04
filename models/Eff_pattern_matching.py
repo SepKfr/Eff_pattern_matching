@@ -5,10 +5,10 @@ import math
 import random
 
 
-class KittyCatConv(nn.Module):
-    def __init__(self, d_k, device, h, l_k, seed):
+class Eff_pattern_matching(nn.Module):
+    def __init__(self, d_k, device, h, seed):
 
-        super(KittyCatConv, self).__init__()
+        super(Eff_pattern_matching, self).__init__()
 
         torch.manual_seed(seed)
         random.seed(seed)
@@ -75,13 +75,7 @@ class KittyCatConv(nn.Module):
         K = K.unsqueeze(-1)
         K = self.proj_back_k(K)
 
-        #index = index.unsqueeze(-2).repeat(1, 1, l, 1)
         scores = torch.einsum('bhqd,bhkd->bhqk', Q, K) / np.sqrt(self.d_k)
-
-        '''scores_f = torch.zeros(b, h, l, l_k, device=self.device)
-        scores_f[torch.arange(b)[:, None, None, None],
-                 torch.arange(h)[None, :, None, None],
-                 torch.arange(l)[None, None, :, None], index] = scores'''
 
         attn = torch.softmax(scores, -1)
         context = torch.einsum('bhqk,bhkd->bhqd', attn, V)

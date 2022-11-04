@@ -8,8 +8,7 @@ from models.BasicAttn import BasicAttn
 from models.ConvAttn import ConvAttn
 from models.Autoformer import AutoCorrelation
 from models.Informer import ProbAttention
-from models.KittyCat import KittyCatConv
-from models.LogTrans import LogTrans
+from models.Eff_pattern_matching import Eff_pattern_matching
 
 torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
@@ -73,28 +72,33 @@ class MultiHeadAttention(nn.Module):
 
         if attn_mask is not None:
             attn_mask = attn_mask.unsqueeze(1).repeat(1, self.n_heads, 1, 1)
+
         if self.attn_type == "ACAT":
-            context,  attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2], seed=self.seed)(
+            context,  attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, seed=self.seed)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
-        elif "KittyCat" in self.attn_type:
-            context,  attn = KittyCatConv(d_k=self.d_k, device=self.device, h=self.n_heads, l_k=k_s.shape[2], seed=self.seed)(
+
+        elif "Eff_pattern_matching" in self.attn_type:
+            context,  attn = Eff_pattern_matching(d_k=self.d_k, device=self.device, h=self.n_heads, seed=self.seed)(
             Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
+
         elif self.attn_type == "basic_attn":
             context, attn = BasicAttn(d_k=self.d_k, device=self.device, seed=self.seed)(
             Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
-        elif self.attn_type == "LogTrans":
-            context,  attn = LogTrans(d_k=self.d_k, device=self.device, seed=self.seed)(
-                Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
+
         elif self.attn_type == "conv_attn":
             context,  attn = ConvAttn(d_k=self.d_k, device=self.device, kernel=self.kernel, h=self.n_heads, seed=self.seed)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
+
         elif self.attn_type == "informer":
             mask_flag = True if attn_mask is not None else False
             context, attn = ProbAttention(mask_flag=mask_flag, seed=self.seed)(q_s, k_s, v_s, attn_mask)
+
         else:
             context, attn = AutoCorrelation()(q_s.transpose(1, 2), k_s.transpose(1, 2), v_s.transpose(1, 2), attn_mask)
+
         context = context.transpose(1, 2).contiguous().view(batch_size, -1, self.n_heads * self.d_v)
         output = self.fc(context)
+
         return output, attn
 
 
@@ -171,8 +175,6 @@ class Encoder(nn.Module):
             enc_outputs, enc_self_attn = layer(enc_outputs, enc_self_attn_mask)
             enc_self_attns.append(enc_self_attn)
 
-        '''enc_self_attns = torch.stack(enc_self_attns)
-        enc_self_attns = enc_self_attns.permute([1, 0, 2, 3, 4])'''
         return enc_outputs, enc_self_attns
 
 
@@ -244,11 +246,6 @@ class Decoder(nn.Module):
             )
             dec_self_attns.append(dec_self_attn)
             dec_enc_attns.append(dec_enc_attn)
-        '''dec_self_attns = torch.stack(dec_self_attns)
-        dec_enc_attns = torch.stack(dec_enc_attns)
-
-        dec_self_attns = dec_self_attns.permute([1, 0, 2, 3, 4])
-        dec_enc_attns = dec_enc_attns.permute([1, 0, 2, 3, 4])'''
 
         return dec_outputs, dec_self_attns, dec_enc_attns
 

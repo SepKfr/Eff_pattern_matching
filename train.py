@@ -1,4 +1,4 @@
-from models.eff_acat import Transformer
+from models.Transformers import Transformer
 from torch.optim import Adam
 import torch.nn as nn
 import numpy as np
@@ -15,7 +15,7 @@ from optuna.samplers import TPESampler
 from optuna.trial import TrialState
 
 from data.data_loader import ExperimentConfig
-from Utils.base_train import batching, batch_sampled_data, inverse_output, ModelData
+from Utils.base_train import batching, batch_sampled_data, ModelData
 
 
 class NoamOpt:
@@ -259,20 +259,6 @@ class Train:
             output = self.best_model(self.test.enc[j], self.test.dec[j])
             predictions[j] = output.squeeze(-1).cpu().detach().numpy()
             targets_all[j] = self.test.y_true[j].cpu().squeeze(-1).detach().numpy()
-            '''output_map = inverse_output(output, self.test.y_true[j], self.test.y_id[j])
-            p = self.formatter.format_predictions(output_map["predictions"])
-            if p is not None:
-                forecast = torch.from_numpy(extract_numerical_data(p).to_numpy()).to(self.device)
-
-                if self.exp_name == "covid":
-                    forecast = forecast.int()
-
-                predictions[j, :forecast.shape[0], :] = forecast
-
-                targets = torch.from_numpy(extract_numerical_data(
-                    self.formatter.format_predictions(output_map["targets"])).to_numpy()).to(self.device)
-
-                targets_all[j, :targets.shape[0], :] = targets'''
 
         predictions = torch.from_numpy(predictions)
         targets_all = torch.from_numpy(targets_all)
@@ -310,11 +296,11 @@ class Train:
 def main():
 
     parser = argparse.ArgumentParser(description="preprocess argument parser")
-    parser.add_argument("--attn_type", type=str, default='autoformer')
-    parser.add_argument("--name", type=str, default="KittyCat")
+    parser.add_argument("--attn_type", type=str, default='Eff_pattern_matching')
+    parser.add_argument("--name", type=str, default="Eff_pattern_matching")
     parser.add_argument("--exp_name", type=str, default='traffic')
     parser.add_argument("--cuda", type=str, default="cuda:0")
-    parser.add_argument("--seed", type=int, default=21)
+    parser.add_argument("--seed", type=int, default=1692)
     parser.add_argument("--pr", type=float, default=0.8)
     parser.add_argument("--n_trials", type=int, default=100)
     parser.add_argument("--DataParallel", type=bool, default=False)
