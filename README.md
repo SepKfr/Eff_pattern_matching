@@ -32,5 +32,6 @@ cuda:str         which GPU
 
 
 # one example with traffic dataset and ATA forecasting model
+```
 python train.py --exp_name solar --model_name ATA_gp --attn_type ATA --seed 4293 --cuda cuda:0
 ```
