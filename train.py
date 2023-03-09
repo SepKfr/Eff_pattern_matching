@@ -213,7 +213,8 @@ class Train:
                 loss.backward()
                 optimizer.step_and_update_lr()
 
-            print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
+            if epoch % 10 == 0:
+                print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
             model.eval()
             test_loss = 0
@@ -223,7 +224,8 @@ class Train:
                 loss = self.criterion(outputs, self.valid.y_true[j])
                 test_loss += loss.item()
 
-            print("val loss: {:.4f}".format(test_loss))
+            if epoch % 10 == 0:
+                print("val loss: {:.4f}".format(test_loss))
 
             if test_loss < val_inner_loss:
                 val_inner_loss = test_loss
@@ -233,10 +235,6 @@ class Train:
                     torch.save({'model_state_dict': model.state_dict()},
                                os.path.join(self.model_path, "{}_{}".format(self.name, self.seed)))
                 epoch_end = epoch
-
-            if self.exp_name == "covid":
-                if epoch - epoch_end > 10:
-                    break
 
         return val_loss
 
