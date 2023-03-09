@@ -166,8 +166,8 @@ class Train:
             os.makedirs(self.model_path)
 
         d_model = trial.suggest_categorical("d_model", [16, 32])
-        w_steps = trial.suggest_categorical("w_steps", [1000])
-        stack_size = trial.suggest_categorical("stack_size", [1, 3] if self.attn_type == "basic_attn" else [1])
+        w_steps = trial.suggest_categorical("w_steps", [1000, 8000])
+        stack_size = trial.suggest_categorical("stack_size", [1, 3])
 
         n_heads = self.model_params['num_heads']
 
