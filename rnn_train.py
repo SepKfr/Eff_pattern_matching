@@ -182,7 +182,8 @@ class Train:
             for batch_id in range(n_batches_train):
 
                 output = model(self.train.enc[batch_id], self.train.dec[batch_id])
-                loss = self.criterion(output, self.train.y_true[batch_id]) + self.mae_loss(output, self.train.y_true[batch_id])
+                loss = self.criterion(output, self.train.y_true[batch_id]) + \
+                       self.mae_loss(output, self.train.y_true[batch_id])
 
                 total_loss += loss.item()
 
