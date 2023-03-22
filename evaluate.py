@@ -86,7 +86,7 @@ for i, seed in enumerate([7835, 5129, 9468]):
                                 seed=seed,
                                 pred_len=pred_len)
                 else:
-                    p_model = True if args.p_model == "True" else False
+
                     model = Transformer(src_input_size=src_input_size,
                                         tgt_input_size=tgt_input_size,
                                         pred_len=pred_len,
