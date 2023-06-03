@@ -171,7 +171,7 @@ class Train:
 
         n_heads = self.model_params['num_heads']
 
-        kernel = [1, 3, 6, 9] if self.attn_type == "attn_conv" else [1]
+        kernel = [9] if self.attn_type == "attn_conv" else [1]
         kernel = trial.suggest_categorical("kernel", kernel)
 
         if [d_model, kernel, stack_size] in self.param_history:
