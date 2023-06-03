@@ -8,7 +8,7 @@ from models.BasicAttn import BasicAttn
 from models.ConvAttn import ConvAttn
 from models.Autoformer import AutoCorrelation
 from models.Informer import ProbAttention
-from models.Eff_pattern_matching import Eff_pattern_matching
+from models.ATA import ATA
 
 torch.backends.cudnn.benchmark = False
 torch.backends.cudnn.deterministic = True
@@ -59,10 +59,6 @@ class MultiHeadAttention(nn.Module):
         self.kernel = kernel
         self.seed = seed
 
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
-
     def forward(self, Q, K, V, attn_mask):
 
         batch_size = Q.shape[0]
@@ -77,8 +73,8 @@ class MultiHeadAttention(nn.Module):
             context,  attn = ACAT(d_k=self.d_k, device=self.device, h=self.n_heads, seed=self.seed)(
                 Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
 
-        elif "Eff_pattern_matching" in self.attn_type:
-            context,  attn = Eff_pattern_matching(d_k=self.d_k, device=self.device, h=self.n_heads, seed=self.seed)(
+        elif "ATA" in self.attn_type:
+            context,  attn = ATA(d_k=self.d_k, device=self.device, h=self.n_heads, seed=self.seed)(
             Q=q_s, K=k_s, V=v_s, attn_mask=attn_mask)
 
         elif self.attn_type == "basic_attn":
@@ -109,10 +105,6 @@ class PoswiseFeedForwardNet(nn.Module):
 
         self.w_1 = nn.Linear(d_model, d_ff)
         self.w_2 = nn.Linear(d_ff, d_model)
-
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
 
     def forward(self, inputs):
 
@@ -281,10 +273,6 @@ class Transformer(nn.Module):
         self.attn_type = attn_type
         self.pred_len = pred_len
         self.device = device
-
-        for m in self.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.uniform_(m.weight, -1/np.sqrt(d_model), 1/np.sqrt(d_model))
 
     def forward(self, enc_inputs, dec_inputs):
 
