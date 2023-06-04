@@ -213,7 +213,7 @@ class Train:
                 loss.backward()
                 optimizer.step_and_update_lr()
 
-            if epoch % 10 == 0:
+            if epoch % 5 == 0:
                 print("Train epoch: {}, loss: {:.4f}".format(epoch, total_loss))
 
             model.eval()
@@ -312,7 +312,7 @@ def main():
     data_csv_path = "{}.csv".format(args.exp_name)
     raw_data = pd.read_csv(data_csv_path)
 
-    for pred_len in [48, 96]:
+    for pred_len in [24, 48, 72, 96]:
         Train(raw_data, args, pred_len)
 
 
